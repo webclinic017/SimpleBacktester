@@ -4,8 +4,8 @@ CLI script to download historical ticks. Works for both active and expired futur
 
 if __name__ == "__main__":
     
-    from gulo.historical_data.utils.ticks import download_and_store_hist_ticks
-    from gulo.utils.utils import start_ib
+    from src.historical_data.utils.ticks import download_and_store_hist_ticks
+    from src.utils.ib import start_ib
     import datetime
     from ib_insync import Contract, ContractDetails, Future
     from typing import List, Optional
