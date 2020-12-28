@@ -14,7 +14,7 @@ from ib_insync import Contract
 from ib_insync.objects import HistoricalTickLast, HistoricalTickBidAsk
 from typing import List, Union
 from src.db import DbTicks
-from src.logger import get_logger
+from src.utils.logger import get_logger
 from src.utils import strptime, to_utc
 from src.utils.ib import start_ib
 

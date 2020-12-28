@@ -7,7 +7,7 @@ from src.events import Event, StrategyTrade
 from src.market import Market
 from src.orders import Order, MktOrder
 from src.strategy import StrategyInterface
-from src.logger import get_logger
+from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
