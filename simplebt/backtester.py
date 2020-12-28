@@ -3,11 +3,11 @@ from queue import Queue
 from typing import Optional
 
 from ib_insync import Contract
-from src.events import Event, StrategyTrade
-from src.market import Market
-from src.orders import Order, MktOrder
-from src.strategy import StrategyInterface
-from src.utils.logger import get_logger
+from simplebt.events import Event, StrategyTrade
+from simplebt.market import Market
+from simplebt.orders import Order, MktOrder
+from simplebt.strategy import StrategyInterface
+from simplebt.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

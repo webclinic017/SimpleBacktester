@@ -4,9 +4,9 @@ import datetime
 from ib_insync import Contract
 from ib_insync.objects import HistoricalTickLast, HistoricalTickBidAsk
 from typing import Iterator, Optional, Union, Dict, Tuple
-from src.db import Db, TableRef
-from src.resources.config import TICKS_SCHEMA_NAME
-from src.utils import to_utc
+from simplebt.db import Db, TableRef
+from simplebt.resources.config import TICKS_SCHEMA_NAME
+from simplebt.utils import to_utc
 
 
 CREATE_TABLE_QUERIES: Dict[str, str] = {

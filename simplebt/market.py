@@ -1,9 +1,9 @@
 import datetime
 from queue import Queue
 from ib_insync import Contract
-from src.historical_data.load.ticks_loader import BidAskTicksLoader, TradesTicksLoader
-from src.events import Event, Nothing, ChangeBestBatch, MktTradeBatch
-from src.book import BookL0
+from simplebt.historical_data.load.ticks_loader import BidAskTicksLoader, TradesTicksLoader
+from simplebt.events import Event, Nothing, ChangeBestBatch, MktTradeBatch
+from simplebt.book import BookL0
 
 class Market:
     def __init__(

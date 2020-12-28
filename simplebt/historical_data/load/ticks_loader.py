@@ -5,11 +5,11 @@ import pandas as pd
 import pathlib
 from typing import List, Dict, Generator
 from ib_insync import Contract
-from src.db import DbTicks
-from src.resources.config import DELIMITER, DATA_DIR
-from src.events import ChangeBest, MktTrade, ChangeBestBatch, MktTradeBatch
-from src.book import BookL0
-from src.utils import to_utc
+from simplebt.db import DbTicks
+from simplebt.resources.config import DELIMITER, DATA_DIR
+from simplebt.events import ChangeBest, MktTrade, ChangeBestBatch, MktTradeBatch
+from simplebt.book import BookL0
+from simplebt.utils import to_utc
 
 class TicksLoader(abc.ABC):
     def __init__(

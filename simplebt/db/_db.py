@@ -3,7 +3,7 @@ import psycopg2
 from dataclasses import dataclass
 from collections import namedtuple
 from typing import Optional
-from src.resources.config import PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD
+from simplebt.resources.config import PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD
 
 TableRef = namedtuple("TableRef", "schema table")
 

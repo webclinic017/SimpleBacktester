@@ -1,7 +1,7 @@
 import datetime
 import logging
 import sys
-from src.resources.config import LOGS_DIR
+from simplebt.resources.config import LOGS_DIR
 
 def get_logger(
     name: str,

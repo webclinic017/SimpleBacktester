@@ -4,8 +4,8 @@ import datetime
 from ib_insync import Contract
 from ib_insync.objects import BarDataList
 from typing import Optional
-from src.db import Db, TableRef
-from src.resources.config import BARS_SCHEMA_DICT
+from simplebt.db import Db, TableRef
+from simplebt.resources.config import BARS_SCHEMA_DICT
 
 
 class DbBars(Db):
