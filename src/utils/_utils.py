@@ -2,6 +2,7 @@ import datetime
 import pandas as pd
 from typing import Optional, Callable
 
+
 def to_utc(t: datetime.datetime) -> datetime.datetime:
     if hasattr(t, "replace"):
         return t.replace(tzinfo=datetime.timezone.utc)
@@ -10,7 +11,7 @@ def to_utc(t: datetime.datetime) -> datetime.datetime:
 
 
 def strptime(
-    datestr: str, tzinfo: Optional[datetime.timezone] = datetime.timezone.utc
+        datestr: str, tzinfo: Optional[datetime.timezone] = datetime.timezone.utc
 ) -> datetime.datetime:
     return datetime.datetime.strptime(datestr, "%Y%m%d").replace(tzinfo=tzinfo)
 
