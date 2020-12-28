@@ -1,3 +1,4 @@
+import logging
 import datetime
 from queue import Queue
 from typing import Optional
@@ -7,9 +8,7 @@ from simplebt.events import Event, StrategyTrade
 from simplebt.market import Market
 from simplebt.orders import Order, MktOrder
 from simplebt.strategy import StrategyInterface
-from simplebt.utils.logger import get_logger
 
-logger = get_logger(__name__)
 
 class Backtester:
     def __init__(
@@ -19,16 +18,20 @@ class Backtester:
         start_time: datetime.datetime,
         end_time: datetime.datetime,
         time_step: datetime.timedelta,
+        data_dir: pathlib.Path,
+        logger: logging.Logger=None,
     ):
         self.time = start_time
         self.end_time = end_time
         self.time_step = time_step
         
         self.strat = strat
-        self.mkt = Market(start_time=start_time - datetime.timedelta(seconds=1), contract=contract)
+        self.mkt = Market(start_time=start_time - datetime.timedelta(seconds=1), contract=contract, data_dir=data_dir)
 
         self._strat_pending_orders: "Queue[Order]" = Queue()
         self._events: "Queue[Event]" = Queue()
+        
+        self.logger = logger or logging.getLogger(__name__)
 
     def _process_pending_orders(self) -> "Queue[StrategyTrade]":
         q: "Queue[StrategyTrade]" = Queue()

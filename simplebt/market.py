@@ -1,4 +1,5 @@
 import datetime
+import pathlib
 from queue import Queue
 from ib_insync import Contract
 from simplebt.historical_data.load.ticks_loader import BidAskTicksLoader, TradesTicksLoader
@@ -9,12 +10,13 @@ class Market:
     def __init__(
         self,
         start_time: datetime.datetime,
-        contract: Contract
+        contract: Contract,
+        data_dir: pathlib.Path
     ):
         self.time = start_time
         self.contract = contract
-        self._trades_loader = TradesTicksLoader(contract, chunksize=50000)
-        self._bidask_loader = BidAskTicksLoader(contract, chunksize=50000)
+        self._trades_loader = TradesTicksLoader(contract, chunksize=50000, data_dir=data_dir)
+        self._bidask_loader = BidAskTicksLoader(contract, chunksize=50000, data_dir=data_dir)
         
         self._trades_ticks = MktTradeBatch(events=[], time=start_time)
         self._bidask_ticks = ChangeBestBatch(events=[], time=start_time)
