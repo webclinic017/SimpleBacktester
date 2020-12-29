@@ -1,10 +1,13 @@
+# TODO: orders should be processed by the market not by the backtester
 import logging
 import datetime
+import pathlib
 from queue import Queue
 from typing import Optional
+import ib_insync as ibi
 
-from ib_insync import Contract
-from simplebt.events import Event, StrategyTrade
+from simplebt.events.generic import Event
+from simplebt.events.market import StrategyTrade
 from simplebt.market import Market
 from simplebt.orders import Order, MktOrder
 from simplebt.strategy import StrategyInterface
@@ -14,12 +17,12 @@ class Backtester:
     def __init__(
         self,
         strat: StrategyInterface,
-        contract: Contract,
+        contract: ibi.Contract,
         start_time: datetime.datetime,
         end_time: datetime.datetime,
         time_step: datetime.timedelta,
         data_dir: pathlib.Path,
-        logger: logging.Logger=None,
+        logger: logging.Logger = None,
     ):
         self.time = start_time
         self.end_time = end_time
@@ -69,7 +72,7 @@ class Backtester:
 
     def run(self):
         while self.time <= self.end_time:
-            logger.info(self.time)
+            self.logger.info(self.time)
             self.mkt.set_time(time=self.time)
             
             strat_trades: "Queue[StrategyTrade]" = self._process_pending_orders()

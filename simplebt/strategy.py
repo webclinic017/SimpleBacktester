@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Union
-from simplebt.events import StrategyTrade, Event, ChangeBestBatch, MktTradeBatch
+from simplebt.events.generic import Event
+from simplebt.events.market import StrategyTrade
+from simplebt.events.batches import ChangeBestBatch, MktTradeBatch
 
 
 class StrategyInterface(ABC):

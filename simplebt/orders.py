@@ -1,7 +1,7 @@
 import datetime
 from ib_insync import Contract
 from dataclasses import dataclass
-from simplebt.events import Event
+from simplebt.events.generic import Event
 
 @dataclass(frozen=True)
 class Order(Event):  # GTC

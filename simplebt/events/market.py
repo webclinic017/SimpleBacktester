@@ -1,19 +1,11 @@
 import datetime
 from dataclasses import dataclass
 from simplebt.book import BookL0
-from typing import Iterable, List
+
+from simplebt.events.generic import Event
 
 
-@dataclass(frozen=True)
-class Event:
-    time: datetime.datetime
-
-
-@dataclass(frozen=True)
-class Nothing(Event):
-    time: datetime.datetime
-
-
+# Created by the strategy
 @dataclass(frozen=True)
 class StrategyTrade(Event):
     price: float
@@ -21,6 +13,7 @@ class StrategyTrade(Event):
     time: datetime.datetime
 
 
+# Market Events
 @dataclass(frozen=True)
 class ChangeBest(Event):
     best: BookL0
@@ -34,13 +27,12 @@ class MktTrade(Event):
     time: datetime.datetime
 
 
-# ChangeBestBatch = NewType("ChangeBestBatch", List[ChangeBest])
+# Market Calendar Events
 @dataclass(frozen=True)
-class ChangeBestBatch(Event):
-    events: List[ChangeBest]
+class MktOpen(Event):
+    time: datetime.datetime
 
 
-# MktTradeBatch = NewType("MktTradeBatch", List[MktTrade])
 @dataclass(frozen=True)
-class MktTradeBatch(Event):
-    events: List[MktTrade]
+class MktClose(Event):
+    time: datetime.datetime
