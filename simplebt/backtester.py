@@ -3,7 +3,7 @@ import logging
 import datetime
 import pathlib
 from queue import Queue
-from typing import Optional
+from typing import Optional, Tuple, Dict, List
 import ib_insync as ibi
 
 from simplebt.events.generic import Event
@@ -17,23 +17,32 @@ class Backtester:
     def __init__(
         self,
         strat: StrategyInterface,
-        contract: ibi.Contract,
+        contracts: Tuple[ibi.Contract],
         start_time: datetime.datetime,
         end_time: datetime.datetime,
         time_step: datetime.timedelta,
         data_dir: pathlib.Path,
+        shuffle_events: bool = None,
         logger: logging.Logger = None,
     ):
+        """
+        :param contracts: the order matters unless shuffle_events is set to True
+        :param shuffle_events: whether to shuffle the events coming from different mkts
+        """
         self.time = start_time
         self.end_time = end_time
         self.time_step = time_step
         
         self.strat = strat
-        self.mkt = Market(start_time=start_time - datetime.timedelta(seconds=1), contract=contract, data_dir=data_dir)
+        self.mkts: Dict[ibi.Contract, Market] = {
+            contract: Market(start_time=start_time, contract=contract, data_dir=data_dir)
+            for contract in contracts
+        }
 
         self._strat_pending_orders: "Queue[Order]" = Queue()
         self._events: "Queue[Event]" = Queue()
-        
+        self.shuffle_events: bool = shuffle_events or False
+
         self.logger = logger or logging.getLogger(__name__)
 
     def _process_pending_orders(self) -> "Queue[StrategyTrade]":
@@ -61,7 +70,11 @@ class Backtester:
         )
         return trade
 
-    def _process_events(self, events: "Queue[Event]"):
+    def _get_events_from_mkts(self):
+        for mkt in self.mkts:
+        mkt_events: List[Event] = self.mkt.get_events()
+
+    def _feed_events_to_strat(self, events: "Queue[Event]"):
         while not events.empty():
             event = events.get_nowait()
             strat_action: Optional[Order] = self.strat.process_event(event)
@@ -76,9 +89,9 @@ class Backtester:
             self.mkt.set_time(time=self.time)
             
             strat_trades: "Queue[StrategyTrade]" = self._process_pending_orders()
-            self._process_events(events=strat_trades)
+            self._feed_events_to_strat(events=strat_trades)
             
             mkt_events: Queue[Event] = self.mkt.get_events()
-            self._process_events(events=mkt_events)
+            self._feed_events_to_strat(events=mkt_events)
 
             self.time += self.time_step
