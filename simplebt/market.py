@@ -1,7 +1,6 @@
 import datetime
 import pathlib
-from queue import Queue
-from typing import Union, Optional
+from typing import List, Union, Optional
 import ib_insync as ibi
 import trading_calendars as tc
 
@@ -43,16 +42,16 @@ class Market:
         self._create_cal_events(time=time)
         self._load_events(time=time)
     
-    def get_events(self) -> "Queue[Event]":
-        q: Queue[Event] = Queue()  # FIFO
+    def get_events(self) -> List[Event]:
+        q: List[Event] = []  # FIFO
         if self._cal_event:
-            q.put(self._cal_event)
+            q.append(self._cal_event)
         if self._trades_ticks.events:
-            q.put(self._trades_ticks)
+            q += self._trades_ticks
         if self._bidask_ticks.events:
-            q.put(self._bidask_ticks)
-        if q.empty():
-            q.put(Nothing(time=self.time))
+            q += self._bidask_ticks
+        if not q:
+            q.append(Nothing(time=self.time))
         return q
     
     def _load_events(self, time: datetime.datetime):
