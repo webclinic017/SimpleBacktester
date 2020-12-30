@@ -1,9 +1,11 @@
 # TODO: orders should be processed by the market not by the backtester
+import itertools
 import logging
 import datetime
 import pathlib
-from queue import Queue
-from typing import Optional, Tuple, Dict, List
+import random
+import queue
+from typing import Optional, Tuple, Dict, List, Generator, Iterable
 import ib_insync as ibi
 
 from simplebt.events.generic import Event
@@ -39,14 +41,14 @@ class Backtester:
             for contract in contracts
         }
 
-        self._strat_pending_orders: "Queue[Order]" = Queue()
-        self._events: "Queue[Event]" = Queue()
+        self._strat_pending_orders: "queue.Queue[Order]" = queue.Queue()
+        self._events: "Queue[Event]" = queue.Queue()
         self.shuffle_events: bool = shuffle_events or False
 
         self.logger = logger or logging.getLogger(__name__)
 
-    def _process_pending_orders(self) -> "Queue[StrategyTrade]":
-        q: "Queue[StrategyTrade]" = Queue()
+    def _process_pending_orders(self) -> "queue.Queue[StrategyTrade]":
+        q: "queue.Queue[StrategyTrade]" = queue.Queue()
         while not self._strat_pending_orders.empty:
             order = self._strat_pending_orders.get_nowait()
             if isinstance(order, MktOrder):
@@ -70,9 +72,16 @@ class Backtester:
         )
         return trade
 
-    def _get_events_from_mkts(self):
-        for mkt in self.mkts:
-        mkt_events: List[Event] = self.mkt.get_events()
+    def _get_events_from_mkts(self) -> Queue[Event]:
+        q: Queue[Event] = Queue()
+        all_events: Iterable[Event] = itertools.chain.from_iterable(
+            (mkt.get_events() for mkt in self.mkts.values())
+        )
+        if self.shuffle_events:
+            all_events = sorted(all_events, key=lambda k: random.random())
+        for e in all_events:
+            q.put(e)
+        return q
 
     def _feed_events_to_strat(self, events: "Queue[Event]"):
         while not events.empty():
