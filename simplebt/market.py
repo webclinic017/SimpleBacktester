@@ -24,7 +24,7 @@ class Market:
         self.contract = contract
 
         self.calendar: tc.TradingCalendar = tc.get_calendar(contract.exchange)
-        self._is_mkt_open: bool = self.calendar.is_open_on_minute(self.time)
+        self._is_mkt_open: bool = self.calendar.is_open_on_minute(self.time.timestamp())
 
         self._trades_loader = TradesTicksLoader(contract, chunksize=50000, data_dir=data_dir)
         self._bidask_loader = BidAskTicksLoader(contract, chunksize=50000, data_dir=data_dir)
@@ -80,7 +80,7 @@ class Market:
     
     def _create_cal_events(self, time: datetime.datetime) -> Optional[Union[MktOpen, MktClose]]:
         event = None
-        is_mkt_open: bool = self.calendar.is_open_on_minute(time)
+        is_mkt_open: bool = self.calendar.is_open_on_minute(time.timestamp())
         if is_mkt_open != self._is_mkt_open:
             if is_mkt_open:
                 event = MktOpen(time=time)
