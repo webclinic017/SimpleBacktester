@@ -1,4 +1,3 @@
-# TODO: orders should be processed by the market not by the backtester
 import itertools
 import logging
 import datetime
@@ -9,7 +8,6 @@ from typing import Optional, Tuple, Dict, Iterable
 import ib_insync as ibi
 
 from simplebt.events.generic import Event
-from simplebt.events.market import StrategyTrade
 from simplebt.market import Market
 from simplebt.events.orders import Order
 from simplebt.strategy import StrategyInterface
