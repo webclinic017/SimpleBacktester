@@ -1,5 +1,6 @@
 import os
 import pathlib
+import tempfile
 
 PGHOST = "localhost"
 PGPORT = os.environ.get("PGPORT") or "5432"
@@ -10,7 +11,8 @@ PGPASSWORD = os.environ.get("PGPASSWORD") or ""
 TICKS_SCHEMA_NAME = "ticks"
 BARS_SCHEMA_DICT = {"TRADES": "bars_trades", "BID_ASK": "bars_bidask"}
 
-BASE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
+_TMP_DIR = tempfile.TemporaryDirectory()
+BASE_DIR = pathlib.Path(_TMP_DIR.name)
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 LOGS_DIR = BASE_DIR / "logs"
