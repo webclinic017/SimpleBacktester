@@ -3,6 +3,7 @@ import pathlib
 import random
 from typing import List, Union, Optional
 import ib_insync as ibi
+import pandas as pd
 import trading_calendars as tc
 
 from simplebt.events.market import MktOpen, MktClose, StrategyTrade
@@ -25,7 +26,7 @@ class Market:
 
         # NOTE: beware this might not be accurate
         self.calendar: tc.TradingCalendar = tc.get_calendar(contract.exchange)
-        self._is_mkt_open: bool = self.calendar.is_open_on_minute(self.time.timestamp())
+        self._is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(self.time))
 
         self._trades_loader = TradesTicksLoader(contract, chunksize=50000, data_dir=data_dir)
         self._bidask_loader = BidAskTicksLoader(contract, chunksize=50000, data_dir=data_dir)
@@ -72,11 +73,11 @@ class Market:
         if self._cal_event:
             events.append(self._cal_event)
         if self._strat_trades:
-            events += self._strat_trades
+            events += self._strat_trades  # append as single events
         if self._trades_ticks.events:
-            events += self._trades_ticks
+            events.append(self._trades_ticks)  # append as batch
         if self._bidask_ticks.events:
-            events += self._bidask_ticks
+            events.append(self._bidask_ticks)
         if not events:
             # TODO: remove
             events.append(Nothing(time=self.time))
@@ -84,7 +85,7 @@ class Market:
     
     def _create_cal_events(self, time: datetime.datetime) -> Optional[Union[MktOpen, MktClose]]:
         event = None
-        is_mkt_open: bool = self.calendar.is_open_on_minute(time.timestamp())
+        is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(time))
         if is_mkt_open != self._is_mkt_open:
             if is_mkt_open:
                 event = MktOpen(time=time)
