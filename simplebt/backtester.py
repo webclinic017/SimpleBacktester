@@ -13,7 +13,7 @@ from simplebt.events.orders import Order
 from simplebt.strategy import StrategyInterface
 
 
-EventQueue = NewType("EventQueue", queue.Queue[Event])
+EventQueue = NewType("EventQueue", queue.Queue)  # Should be Queue[Event] but raises type obj is not subscriptable
 
 
 class Backtester:
