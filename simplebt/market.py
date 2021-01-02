@@ -44,6 +44,9 @@ class Market:
     def get_book_best(self) -> BookL0:
         return self._best
 
+    def add_order(self, order: Order):
+        self._open_orders.append(order)
+
     def set_time(self, time: datetime.datetime):
         """
         Set_time() updates the collection/variables that caches mkt events.
@@ -88,9 +91,6 @@ class Market:
             else:
                 event = MktClose(time=time)
         return event
-
-    def add_order(self, order: Order):
-        self._open_orders.append(order)
 
     def _process_pending_orders(self) -> List[StrategyTrade]:
         trades: List[StrategyTrade] = []
