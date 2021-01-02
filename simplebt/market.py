@@ -23,6 +23,7 @@ class Market:
         self.time = start_time
         self.contract = contract
 
+        # NOTE: beware this might not be accurate
         self.calendar: tc.TradingCalendar = tc.get_calendar(contract.exchange)
         self._is_mkt_open: bool = self.calendar.is_open_on_minute(self.time.timestamp())
 

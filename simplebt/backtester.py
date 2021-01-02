@@ -4,7 +4,7 @@ import datetime
 import pathlib
 import random
 import queue
-from typing import Optional, Tuple, Dict, Iterable, NewType
+from typing import Dict, Iterable, List, NewType, Optional
 import ib_insync as ibi
 
 from simplebt.events.generic import Event
@@ -20,7 +20,7 @@ class Backtester:
     def __init__(
         self,
         strat: StrategyInterface,
-        contracts: Tuple[ibi.Contract],
+        contracts: List[ibi.Contract],
         start_time: datetime.datetime,
         end_time: datetime.datetime,
         time_step: datetime.timedelta,
