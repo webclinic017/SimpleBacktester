@@ -76,9 +76,6 @@ class Backtester:
             self.logger.info(self.time)
             self._set_mkts_time(time=self.time)
             
-            strat_trades: "queue.Queue[StrategyTrade]" = self._process_pending_orders()
-            self._feed_events_to_strat(events=strat_trades)
-            
             mkt_events: queue.Queue[Event] = self._get_events_from_mkts()
             self._feed_events_to_strat(events=mkt_events)
 
