@@ -30,7 +30,9 @@ class Market:
 
         self._trades_loader = TradesTicksLoader(contract, chunksize=50000, data_dir=data_dir)
         self._bidask_loader = BidAskTicksLoader(contract, chunksize=50000, data_dir=data_dir)
-        
+
+        self._open_orders: List[Order] = []
+
         # The following collections/variables can be accessed by self.get_events()
         self._trades_ticks = MktTradeBatch(events=[], time=start_time)
         self._bidask_ticks = ChangeBestBatch(events=[], time=start_time)
@@ -39,8 +41,6 @@ class Market:
         self._strat_trades: List[StrategyTrade] = []
         # this method may populate the collections above
         self.set_time(time=self.time)
-
-        self._open_orders: List[Order] = []
 
     def get_book_best(self) -> BookL0:
         return self._best
