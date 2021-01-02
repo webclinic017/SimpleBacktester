@@ -6,7 +6,7 @@ import ib_insync as ibi
 import trading_calendars as tc
 
 from simplebt.events.market import MktOpen, MktClose, StrategyTrade
-from simplebt.historical_data.load.ticks_loader import BidAskTicksLoader, TradesTicksLoader
+from simplebt.historical_data.load.ticks import BidAskTicksLoader, TradesTicksLoader
 from simplebt.events.generic import Event, Nothing
 from simplebt.events.batches import ChangeBestBatch, MktTradeBatch
 from simplebt.book import BookL0

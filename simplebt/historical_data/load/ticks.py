@@ -7,7 +7,8 @@ from typing import List, Dict, Generator
 from ib_insync import Contract
 from simplebt.db import DbTicks
 from simplebt.resources.config import DELIMITER, DATA_DIR
-from simplebt.events import ChangeBest, MktTrade, ChangeBestBatch, MktTradeBatch
+from simplebt.events.market import ChangeBest, MktTrade
+from simplebt.events.batches import ChangeBestBatch, MktTradeBatch
 from simplebt.book import BookL0
 from simplebt.utils import to_utc
 
