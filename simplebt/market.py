@@ -19,7 +19,8 @@ class Market:
         self,
         start_time: datetime.datetime,
         contract: ibi.Contract,
-        data_dir: pathlib.Path
+        data_dir: pathlib.Path,
+        chunksize: int = None
     ):
         self.time = start_time
         self.contract = contract
@@ -28,8 +29,10 @@ class Market:
         self.calendar: tc.TradingCalendar = tc.get_calendar(contract.exchange)
         self._is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(self.time))
 
-        self._trades_loader = TradesTicksLoader(contract, chunksize=50000, data_dir=data_dir)
-        self._bidask_loader = BidAskTicksLoader(contract, chunksize=50000, data_dir=data_dir)
+        if not chunksize:
+            chunksize = 50000
+        self._trades_loader = TradesTicksLoader(contract, chunksize=chunksize, data_dir=data_dir)
+        self._bidask_loader = BidAskTicksLoader(contract, chunksize=chunksize, data_dir=data_dir)
 
         self._open_orders: List[Order] = []
 
