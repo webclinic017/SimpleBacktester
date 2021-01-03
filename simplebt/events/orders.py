@@ -3,6 +3,8 @@ from ib_insync import Contract
 from dataclasses import dataclass
 from simplebt.events.generic import Event
 
+
+# TODO: Do not make it an event
 @dataclass(frozen=True)
 class Order(Event):  # GTC
     contract: Contract

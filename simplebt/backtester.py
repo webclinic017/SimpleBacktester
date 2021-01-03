@@ -25,6 +25,7 @@ class Backtester:
         start_time: datetime.datetime,
         end_time: datetime.datetime,
         time_step: datetime.timedelta,
+        latency: bool,
         data_dir: pathlib.Path,
         chunksize: int = None,
         shuffle_events: bool = None,
@@ -40,7 +41,7 @@ class Backtester:
         
         self.strat = strat
         self.mkts: Dict[int, Market] = {
-            c.conId: Market(start_time=start_time, contract=c, data_dir=data_dir, chunksize=chunksize)
+            c.conId: Market(contract=c, start_time=start_time, latency=latency, data_dir=data_dir, chunksize=chunksize)
             for c in contracts
         }
 
