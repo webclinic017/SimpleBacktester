@@ -52,6 +52,19 @@ class Market:
     def get_book_best(self) -> BookL0:
         return self._best
 
+    def _get_book_best(self) -> BookL0:
+        """
+        Private alternative to get_book_best.
+        To use when the quote is used at a random time between the beginning and the end of
+        a 1 sec interval.
+        If new changeBest (bid ask) ticks are available, pick a random one. Otherwise return self._best
+        """
+        if self._bidask_ticks.events:
+            best = random.choice(self._bidask_ticks.events)
+        else:  # otherwise default to the L0 retrieved from the latest changeBest
+            best = self._best
+        return best
+
     def add_order(self, order: Order):
         if not self.latency:
             trade: Optional[StrategyTrade] = self._process_order(order)
@@ -131,11 +144,7 @@ class Market:
         return trade
 
     def _exec_mkt_order(self, order: MktOrder) -> Optional[StrategyTrade]:
-        # if new changeBest available, pick a random one
-        if self._bidask_ticks.events:
-            best = random.choice(self._bidask_ticks.events)
-        else:  # otherwise default to the L0 retrieved from the latest changeBest
-            best = self._best
+        best: BookL0 = self._get_book_best()
         # pick the side according to the order type (Long vs Short)
         if order.lots > 0:
             price = best.ask
