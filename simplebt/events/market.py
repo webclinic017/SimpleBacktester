@@ -20,6 +20,7 @@ class ChangeBest(Event):
     time: datetime.datetime
 
 
+# TODO: make market trade object and then add event
 @dataclass(frozen=True)
 class MktTrade(Event):
     price: float
