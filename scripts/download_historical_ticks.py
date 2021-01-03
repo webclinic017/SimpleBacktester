@@ -8,7 +8,7 @@ if __name__ == "__main__":
     from simplebt.utils.ib import start_ib
     import datetime
     from ib_insync import Contract, ContractDetails, Future
-    from typing import List, Optional
+    from typing import List
     import argparse
     
     parser = argparse.ArgumentParser(description="Download historical ticks")
