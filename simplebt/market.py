@@ -1,3 +1,4 @@
+# TODO: sort ticks by pk doesn't work
 import datetime
 import pathlib
 import random
@@ -18,12 +19,14 @@ class Market:
     def __init__(
         self,
         start_time: datetime.datetime,
+        latency: bool,
         contract: ibi.Contract,
         data_dir: pathlib.Path,
         chunksize: int = None
     ):
         self.time = start_time
         self.contract = contract
+        self.latency = latency
 
         # NOTE: beware this might not be accurate
         self.calendar: tc.TradingCalendar = tc.get_calendar(contract.exchange)
@@ -34,8 +37,9 @@ class Market:
         self._trades_loader = TradesTicksLoader(contract, chunksize=chunksize, data_dir=data_dir)
         self._bidask_loader = BidAskTicksLoader(contract, chunksize=chunksize, data_dir=data_dir)
 
-        self._open_orders: List[Order] = []
+        self._pending_orders: List[Order] = []
 
+        self._zero_latency_events: List[Event] = []
         # The following collections/variables can be accessed by self.get_events()
         self._trades_ticks = MktTradeBatch(events=[], time=start_time)
         self._bidask_ticks = ChangeBestBatch(events=[], time=start_time)
@@ -49,7 +53,14 @@ class Market:
         return self._best
 
     def add_order(self, order: Order):
-        self._open_orders.append(order)
+        if not self.latency:
+            trade: Optional[StrategyTrade] = self._process_order(order)
+            if trade:
+                self._zero_latency_events.append(trade)
+            else:
+                self._pending_orders.append(order)
+        else:
+            self._pending_orders.append(order)
 
     def set_time(self, time: datetime.datetime):
         """
@@ -73,6 +84,8 @@ class Market:
 
     def get_events(self) -> List[Event]:
         events: List[Event] = []  # FIFO
+        while self._zero_latency_events:
+            events.append(self._zero_latency_events.pop(0))
         if self._cal_event:
             events.append(self._cal_event)
         if self._strat_trades:
@@ -99,19 +112,23 @@ class Market:
     def _process_pending_orders(self) -> List[StrategyTrade]:
         trades: List[StrategyTrade] = []
         not_matched: List[Order] = []
-        for order in self._open_orders:
-            trade: Optional[StrategyTrade] = None
-            if isinstance(order, MktOrder):
-                trade = self._exec_mkt_order(order=order)
-            elif isinstance(order, LmtOrder):
-                trade = self._exec_lmt_order(order=order)
+        for order in self._pending_orders:
+            trade: Optional[StrategyTrade] = self._process_order(order)
             if trade:
                 trades.append(trade)
             else:
                 # NOTE: treating everything as a Good Til Cancelled for the moment
                 not_matched.append(order)
-        self._open_orders = not_matched
+        self._pending_orders = not_matched
         return trades
+
+    def _process_order(self, order: Order) -> Optional[StrategyTrade]:
+        trade: Optional[StrategyTrade] = None
+        if isinstance(order, MktOrder):
+            trade = self._exec_mkt_order(order=order)
+        elif isinstance(order, LmtOrder):
+            trade = self._exec_lmt_order(order=order)
+        return trade
 
     def _exec_mkt_order(self, order: MktOrder) -> Optional[StrategyTrade]:
         # if new changeBest available, pick a random one
