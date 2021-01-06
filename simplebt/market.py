@@ -60,7 +60,7 @@ class Market:
         If new changeBest (bid ask) ticks are available, pick a random one. Otherwise return self._best
         """
         if self._bidask_ticks.events:
-            best = random.choice(self._bidask_ticks.events)
+            best: BookL0 = random.choice(self._bidask_ticks.events).best
         else:  # otherwise default to the L0 retrieved from the latest changeBest
             best = self._best
         return best
