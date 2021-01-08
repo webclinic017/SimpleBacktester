@@ -43,7 +43,7 @@ class Market:
         # The following collections/variables can be accessed by self.get_events()
         self._trades_ticks = MktTradeBatch(events=[], time=start_time)
         self._bidask_ticks = ChangeBestBatch(events=[], time=start_time)
-        self._best: Optional[BookL0] = None
+        self._best: BookL0 = BookL0(time=start_time, bid=-1, ask=-1, bid_size=0, ask_size=0)
         self._cal_event: Optional[Union[MktOpen, MktClose]] = None
         self._strat_trades: List[StrategyTrade] = []
         # this method may populate the collections above
@@ -88,7 +88,7 @@ class Market:
         self._bidask_ticks = self._bidask_loader.get_ticks_batch_by_time(time=time)
 
         if self._bidask_ticks.events:
-            self._best = self._bidask_ticks.events[-1]
+            self._best = self._bidask_ticks.events[-1].best
 
         if self._is_mkt_open:
             self._strat_trades = self._process_pending_orders()
@@ -113,14 +113,13 @@ class Market:
         return events
     
     def _create_cal_events(self, time: datetime.datetime) -> Optional[Union[MktOpen, MktClose]]:
-        event = None
         is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(time))
         if is_mkt_open != self._is_mkt_open:
             if is_mkt_open:
-                event = MktOpen(time=time)
+                return MktOpen(time=time)
             else:
-                event = MktClose(time=time)
-        return event
+                return MktClose(time=time)
+        return None
 
     def _process_pending_orders(self) -> List[StrategyTrade]:
         trades: List[StrategyTrade] = []
@@ -157,7 +156,8 @@ class Market:
         trade = StrategyTrade(
             time=self.time,
             price=price,
-            lots=order.lots
+            lots=order.lots,
+            order=order
         )
         return trade
 
