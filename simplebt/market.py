@@ -123,15 +123,16 @@ class Market:
 
     def _process_pending_orders(self) -> List[StrategyTrade]:
         trades: List[StrategyTrade] = []
-        not_matched: List[Order] = []
-        for order in self._pending_orders:
-            trade: Optional[StrategyTrade] = self._process_order(order)
-            if trade:
-                trades.append(trade)
-            else:
-                # NOTE: treating everything as a Good Til Cancelled for the moment
-                not_matched.append(order)
-        self._pending_orders = not_matched
+        if self._is_mkt_open:
+            not_matched: List[Order] = []
+            for order in self._pending_orders:
+                trade: Optional[StrategyTrade] = self._process_order(order)
+                if trade:
+                    trades.append(trade)
+                else:
+                    # NOTE: treating everything as a Good Til Cancelled for the moment
+                    not_matched.append(order)
+            self._pending_orders = not_matched
         return trades
 
     def _process_order(self, order: Order) -> Optional[StrategyTrade]:
