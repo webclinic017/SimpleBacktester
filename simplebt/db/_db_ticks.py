@@ -3,7 +3,7 @@ import psycopg2.extras
 import datetime
 from ib_insync import Contract
 from ib_insync.objects import HistoricalTickLast, HistoricalTickBidAsk
-from typing import Iterator, Optional, Union, Dict, Tuple
+from typing import Generator, List, Optional, Union, Dict, Tuple
 from simplebt.db import Db, TableRef
 from simplebt.resources.config import TICKS_SCHEMA_NAME
 from simplebt.utils import to_utc
@@ -57,15 +57,22 @@ def extract_tick_info(
 
 
 def hashed_tick_info_gen(
-    ticks: Iterator[Union[HistoricalTickLast, HistoricalTickBidAsk]]
+    ticks: List[Union[HistoricalTickLast, HistoricalTickBidAsk]]
 ):
     """
     Based on the assumption that the IBKR API will continue to include all ticks belonging to the same second in a single request
     """
+    t0 = ticks[0].time
+    hash_len = len(str(len(ticks)))
     i = 0
     for t in ticks:
-        i += 1
-        hashed_tick_info = extract_tick_info(t) + (f"{t.time}_{i}",)
+        if t.time == t0:
+            i += 1
+        else:
+            i = 0
+            t0 = t.time
+        ix = str(i).zfill(hash_len)
+        hashed_tick_info = extract_tick_info(t) + (f"{t.time}_{ix}",)
         yield hashed_tick_info
 
 
@@ -109,7 +116,7 @@ class DbTicks(Db):
 
     def insert_execute_values_iterator(
         self,
-        ticks: Iterator[Union[HistoricalTickLast, HistoricalTickBidAsk]],
+        ticks: List[Union[HistoricalTickLast, HistoricalTickBidAsk]],
         page_size: int = 100,
     ) -> None:
         """
