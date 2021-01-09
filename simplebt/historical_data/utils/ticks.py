@@ -60,7 +60,7 @@ def download_and_store_hist_ticks(
             end_datetime = _update_end_datetime(ticks, end_datetime)
             if len(ticks) > 0:
                 n_trials = 0
-                db.insert_execute_values_iterator(ticks=filter(_istick, ticks))
+                db.insert_execute_values_iterator(ticks=list(filter(_istick, ticks)))
             else:
                 n_trials += 1
                 logger.info(f"No ticks returned. Trial: {n_trials}/{max_attempts}")
