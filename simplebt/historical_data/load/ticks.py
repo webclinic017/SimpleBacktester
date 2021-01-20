@@ -1,5 +1,6 @@
 import abc
 import datetime
+import logging
 import numpy as np
 import pandas as pd
 import pathlib
@@ -11,6 +12,9 @@ from simplebt.events.market import ChangeBest, MktTrade
 from simplebt.events.batches import ChangeBestBatch, MktTradeBatch
 from simplebt.book import BookL0
 from simplebt.utils import to_utc
+
+
+logger = logging.getLogger(__name__)
 
 class TicksLoader(abc.ABC):
     def __init__(
@@ -28,22 +32,7 @@ class TicksLoader(abc.ABC):
         if not csv_path.exists():
             self._ticks_postgres_to_csv(contract, tick_type, self.csv_path)
 
-        self.chunks = self._read_csv_chunks(dtypes=dtypes, date_col=date_col, chunksize=chunksize)
-        self.out_of_ticks: bool = False
-        self._ticks: pd.DataFrame = pd.DataFrame()
-        self.load_chunk()
-
-    @staticmethod
-    def _ticks_postgres_to_csv(contract, tick_type, csv_path):
-        db = DbTicks(contract=contract, tick_type=tick_type)
-        select_q = f"SELECT * FROM {db.table_ref.schema}.{db.table_ref.table} ORDER BY pk ASC"
-        copy_q = f"COPY ({select_q}) TO STDOUT WITH (FORMAT CSV, HEADER, DELIMITER '{DELIMITER}')"
-        with db.conn.cursor() as cur:
-            with open(csv_path, "w") as f_output:
-                cur.copy_expert(copy_q, f_output)
-
-    def _read_csv_chunks(self, dtypes: Dict[str, np.dtype], date_col: str, chunksize: int) -> Generator[pd.DataFrame, None, None]:
-        return pd.read_csv(
+        self._chunks: Generator[pd.DataFrame, None, None] = pd.read_csv(
             filepath_or_buffer=self.csv_path,
             delimiter=DELIMITER,
             dtype=dtypes,
@@ -54,30 +43,52 @@ class TicksLoader(abc.ABC):
             low_memory=True,
             chunksize=chunksize,
         )
+        self.out_of_ticks: bool = False
+        self._ticks: pd.DataFrame = pd.DataFrame()
+        self._load_chunk()
+        logger.info("Initialized loader")
 
-    def load_chunk(self):
-        self._ticks = self._load_chunk()
+    @staticmethod
+    def _ticks_postgres_to_csv(contract, tick_type, csv_path):
+        logger.info("Dumping data from postgres")
+        db = DbTicks(contract=contract, tick_type=tick_type)
+        select_q = f"SELECT * FROM {db.table_ref.schema}.{db.table_ref.table} ORDER BY pk ASC"
+        copy_q = f"COPY ({select_q}) TO STDOUT WITH (FORMAT CSV, HEADER, DELIMITER '{DELIMITER}')"
+        with db.conn.cursor() as cur:
+            with open(csv_path, "w") as f_output:
+                cur.copy_expert(copy_q, f_output)
+ 
+    def _load_chunk(self):
+        self._ticks = self._load_chunk_rec()
+        logger.info(f"Finished loading chunk: new self._ticks range {self._ticks.index[0]} - {self._ticks.index[-1]}")
 
-    def _load_chunk(self) -> pd.DataFrame:
-        def _load_chunk_rec():
+    def _load_chunk_rec(self) -> pd.DataFrame:
+        def _rec():
             try:
-                df = next(self.chunks)
+                df = next(self._chunks)
+                logger.info("Loaded a new chunk: ix range {df.index[0]} - {df.index[-1]}")
                 if df.index[0] == df.index[-1]:
-                    return pd.concat((df, _load_chunk_rec()), axis=0)
+                    logger.info("Start and end of index are equal. Need to recurse")
+                    return pd.concat((df, _rec()), axis=0)
             except StopIteration:
+                logger.info("Cathced StopIteration")
                 df = pd.DataFrame()
                 self.out_of_ticks = True
             return df
-        return _load_chunk_rec()
+        return _rec()
 
     def get_ticks_by_time(self, time: datetime.datetime) -> pd.DataFrame:
         def get_ticks_by_time_rec():
             if self.out_of_ticks is True:
+                logger.info("Out of ticks baby!")
                 return pd.DataFrame()
             elif self._ticks.index[0] <= time <= self._ticks.index[-1]:
+                logger.info(f"{time} is within the range of the loaded ticks")
                 return self._ticks.loc[time:time]
             else:
-                self.load_chunk()
+                logger.info(f"{time} is outside the loaded range: loading new chunk")
+                self._load_chunk()
+                logger.info("Start another recursive search!")
                 return get_ticks_by_time_rec()
         return get_ticks_by_time_rec()
 
