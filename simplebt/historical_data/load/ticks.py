@@ -47,10 +47,12 @@ class TicksLoader(abc.ABC):
         self.out_of_ticks: bool = False
         self._ticks: pd.DataFrame = pd.DataFrame()
         self._load_chunk()
+        print("Initialized loader")
         logger.info("Initialized loader")
 
     @staticmethod
     def _ticks_postgres_to_csv(contract, tick_type, csv_path):
+        print("Dumping data from postgres")
         logger.info("Dumping data from postgres")
         db = DbTicks(contract=contract, tick_type=tick_type)
         select_q = f"SELECT * FROM {db.table_ref.schema}.{db.table_ref.table} ORDER BY pk ASC"
@@ -61,17 +63,21 @@ class TicksLoader(abc.ABC):
  
     def _load_chunk(self):
         self._ticks = self._load_chunk_rec()
+        print(f"Finished loading chunk: new self._ticks range {self._ticks.index[0]} - {self._ticks.index[-1]}")
         logger.info(f"Finished loading chunk: new self._ticks range {self._ticks.index[0]} - {self._ticks.index[-1]}")
 
     def _load_chunk_rec(self) -> pd.DataFrame:
         def _rec():
             try:
                 df = next(self._chunks)
+                print("Loaded a new chunk: ix range {df.index[0]} - {df.index[-1]}")
                 logger.info("Loaded a new chunk: ix range {df.index[0]} - {df.index[-1]}")
                 if df.index[0] == df.index[-1]:
+                    print("Start and end of index are equal. Need to recurse")
                     logger.info("Start and end of index are equal. Need to recurse")
                     return pd.concat((df, _rec()), axis=0)
             except StopIteration:
+                print("Cathced StopIteration")
                 logger.info("Cathced StopIteration")
                 df = pd.DataFrame()
                 self.out_of_ticks = True
@@ -81,14 +87,18 @@ class TicksLoader(abc.ABC):
     def get_ticks_by_time(self, time: datetime.datetime) -> pd.DataFrame:
         def get_ticks_by_time_rec():
             if self.out_of_ticks is True:
+                print("Out of ticks baby!")
                 logger.info("Out of ticks baby!")
                 return pd.DataFrame()
             elif self._ticks.index[0] <= time <= self._ticks.index[-1]:
+                print(f"{time} is within the range of the loaded ticks")
                 logger.info(f"{time} is within the range of the loaded ticks")
                 return self._ticks.loc[time:time]
             else:
+                print(f"{time} is outside the loaded range: loading new chunk")
                 logger.info(f"{time} is outside the loaded range: loading new chunk")
                 self._load_chunk()
+                print("Start another recursive search!")
                 logger.info("Start another recursive search!")
                 return get_ticks_by_time_rec()
         return get_ticks_by_time_rec()
