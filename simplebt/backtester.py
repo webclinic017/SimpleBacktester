@@ -18,6 +18,8 @@ from simplebt.strategy import StrategyInterface
 #  The only workaround is to enclose it in a str like "queue.Queue[Event]" but I don't like that
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 class Backtester:
     def __init__(
@@ -39,7 +41,10 @@ class Backtester:
         self.time = start_time
         self.end_time = end_time
         self.time_step = time_step
-        
+       
+        if not chunksize:
+            logger.info("Setting chunksize to 1 million rows")
+            chunksize = int(1e6)
         self.strat = strat
         self.mkts: Dict[int, Market] = {
             c.conId: Market(contract=c, start_time=start_time, latency=latency, data_dir=data_dir, chunksize=chunksize)

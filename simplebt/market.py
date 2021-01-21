@@ -22,7 +22,7 @@ class Market:
         latency: bool,
         contract: ibi.Contract,
         data_dir: pathlib.Path,
-        chunksize: int = None
+        chunksize: int
     ):
         self.time = start_time
         self.contract = contract
@@ -32,8 +32,6 @@ class Market:
         self.calendar: tc.TradingCalendar = tc.get_calendar(contract.exchange)
         self._is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(self.time))
 
-        if not chunksize:
-            chunksize = 50000
         self._trades_loader = TradesTicksLoader(contract, chunksize=chunksize, data_dir=data_dir)
         self._bidask_loader = BidAskTicksLoader(contract, chunksize=chunksize, data_dir=data_dir)
 
