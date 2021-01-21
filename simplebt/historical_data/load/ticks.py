@@ -33,6 +33,7 @@ class TicksLoader(abc.ABC):
         if not csv_path.exists():
             self._ticks_postgres_to_csv(contract, tick_type, self.csv_path)
 
+        logger.debug(f"Creating DataFrame generator from {self.csv_path}")
         self._chunks: Generator[pd.DataFrame, None, None] = pd.read_csv(
             filepath_or_buffer=self.csv_path,
             delimiter=DELIMITER,
