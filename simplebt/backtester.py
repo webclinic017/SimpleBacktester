@@ -17,6 +17,8 @@ from simplebt.strategy import StrategyInterface
 #  Declaring `EventQueue = typing.NewType("EventQueue", queue.Queue[Event])` doesn't work either
 #  The only workaround is to enclose it in a str like "queue.Queue[Event]" but I don't like that
 
+logger = logging.getLogger(__name__)
+
 class Backtester:
     def __init__(
         self,
@@ -29,7 +31,6 @@ class Backtester:
         data_dir: pathlib.Path,
         chunksize: int = None,
         shuffle_events: bool = None,
-        logger: logging.Logger = None,
     ):
         """
         :param contracts: the order matters unless shuffle_events is set to True
@@ -47,8 +48,6 @@ class Backtester:
 
         self._events = queue.Queue()
         self.shuffle_events: bool = shuffle_events or False
-
-        self.logger = logger or logging.getLogger(__name__)
 
     def _set_mkts_time(self, time: datetime.datetime):
         for mkt in self.mkts.values():
@@ -74,7 +73,7 @@ class Backtester:
 
     def run(self):
         while self.time <= self.end_time:
-            self.logger.info(self.time)
+            logger.info(f"Process time {self.time}")
             self._set_mkts_time(time=self.time)
             
             mkt_events: queue.Queue = self._get_events_from_mkts()
