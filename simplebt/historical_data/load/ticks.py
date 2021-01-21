@@ -15,6 +15,7 @@ from simplebt.utils import to_utc
 
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class TicksLoader(abc.ABC):
     def __init__(
