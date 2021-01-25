@@ -15,7 +15,6 @@ from ib_insync.objects import HistoricalTickLast, HistoricalTickBidAsk
 from typing import List, Union, Optional
 from simplebt.db import DbTicks
 from simplebt.utils.logger import get_logger
-from simplebt.utils import to_utc
 from simplebt.utils.ib import start_ib
 
 logger = get_logger(name=__name__)
@@ -92,7 +91,8 @@ def _estimate_most_recent_tick_datetime(contract: Contract) -> datetime.datetime
         _d = datetime.datetime.strptime(contract.lastTradeDateOrContractMonth, "%Y%m%d")
     else:
         _d = datetime.datetime.now()
-    return to_utc(_d)
+    _d: datetime.datetime = _d.replace(tzinfo=datetime.timezone.utc)
+    return _d
 
 
 def _update_end_datetime(

@@ -5,7 +5,6 @@ CLI script to download historical ticks. Works for both active and expired futur
 if __name__ == "__main__":
     
     from simplebt.historical_data.utils.ticks import download_and_store_hist_ticks
-    from simplebt.utils import to_utc
     from simplebt.utils.ib import start_ib
     import datetime
     from ib_insync import Contract, ContractDetails, Future
@@ -60,7 +59,7 @@ if __name__ == "__main__":
             START_DATETIME = datetime.datetime.strptime(c.lastTradeDateOrContractMonth, "%Y%m%d") - datetime.timedelta(days=90)
         else:
             START_DATETIME = datetime.datetime.strptime(cs[n - 1].lastTradeDateOrContractMonth, "%Y%m%d")
-        START_DATETIME = to_utc(START_DATETIME)
+        START_DATETIME = START_DATETIME.replace(tzinfo=datetime.timezone.utc)
         download_and_store_hist_ticks(
             client_id=CLIENT_ID,
             port=PORT,
