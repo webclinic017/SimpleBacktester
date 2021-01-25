@@ -4,12 +4,14 @@ import datetime
 import pathlib
 import random
 import queue
+import pandas as pd
 from typing import Dict, Iterable, List, Optional
 import ib_insync as ibi
 
 from simplebt.events.generic import Event
 from simplebt.market import Market
 from simplebt.events.orders import Order
+from simplebt.events.market import StrategyTrade
 from simplebt.strategy import StrategyInterface
 
 # NOTE: The queue lib still doesn't go well with type annotations
@@ -76,7 +78,7 @@ class Backtester:
             if isinstance(action, Order):
                 self.mkts[action.contract.conId].add_order(action)
 
-    def run(self):
+    def run(self, save_path: pathlib.Path = None):
         while self.time <= self.end_time:
             logger.info(f"Process time {self.time}")
             self._set_mkts_time(time=self.time)
@@ -85,3 +87,12 @@ class Backtester:
             self._feed_events_to_strat(events=mkt_events)
 
             self.time += self.time_step
+        logger.info("hey brother, done backtesting")
+        if save_path:
+            trades: List[StrategyTrade] = self.strat.get_trades()
+            df = pd.DataFrame(
+                [(t.time, t.price, t.lots, t.order.time) for t in trades],
+                columns=["time", "price", "lots", "order_time"]
+            )
+            df.to_csv(save_path)
+ 
