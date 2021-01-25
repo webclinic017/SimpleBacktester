@@ -98,15 +98,14 @@ class DbTicks(Db):
         table_name: str = f"{contract.symbol}{exp}_{contract.conId}_{tick_type}".lower()
         return TableRef(TICKS_SCHEMA_NAME, table_name)
 
-    def get_oldest_tick_date(self) -> Optional[datetime.datetime]:
+    def get_oldest_timestamp(self) -> Optional[datetime.datetime]:
         with self.conn.cursor() as cursor:
-            cursor.execute("set TimeZone = UTC;")
             cursor.execute(
                 f"select min(time) from {self.table_ref.schema}.{self.table_ref.table};"
             )
-            date = cursor.fetchone()[0]  # each result is a tuple, that's why the [0] slicing
-        if isinstance(date, datetime.datetime):
-            return to_utc(date)
+            t: Optional[datetime.datetime] = cursor.fetchone()[0]  # each result is a tuple, that's why the [0] slicing
+        if isinstance(t, datetime.datetime):
+            return to_utc(t)
         else:
             return None
 
