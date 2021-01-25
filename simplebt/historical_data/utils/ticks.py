@@ -12,10 +12,10 @@ import datetime
 import asyncio
 from ib_insync import Contract
 from ib_insync.objects import HistoricalTickLast, HistoricalTickBidAsk
-from typing import List, Union
+from typing import List, Union, Optional
 from simplebt.db import DbTicks
 from simplebt.utils.logger import get_logger
-from simplebt.utils import strptime, to_utc
+from simplebt.utils import to_utc
 from simplebt.utils.ib import start_ib
 
 logger = get_logger(name=__name__)
@@ -46,6 +46,7 @@ def download_and_store_hist_ticks(
 
     n_trials: int = 0
     while (end_datetime > start_datetime) and (n_trials < max_attempts):
+        assert end_datetime.tzinfo == datetime.timezone.utc
         try:
             logger.info(f"{end_datetime}")
             ticks = ib.reqHistoricalTicks(
@@ -75,22 +76,23 @@ def download_and_store_hist_ticks(
 
 def _choose_end_date_download(db: DbTicks, contract: Contract) -> datetime.datetime:
     """
-    Choose a date to start the backward download of historical ticks.
-    Being a backward download, we call it end_date.
+    Choose a timestamp to start the backward download of historical ticks.
+    Being a backward download, we call it end_datetime.
     If there are ticks in the db, we'll resume downloading from the oldest available.
     Otherwise we fallback on the estimate_most_recent_tick_date func
     """
-    d = db.get_oldest_tick_date()
-    if d is None:
-        d = _estimate_most_recent_tick_date(contract)
-    return d
+    _d: Optional[datetime.datetime] = db.get_oldest_timestamp()
+    if _d is None:
+        _d: datetime.datetime = _estimate_most_recent_tick_datetime(contract)
+    return _d
 
-def _estimate_most_recent_tick_date(contract: Contract) -> datetime.datetime:
+
+def _estimate_most_recent_tick_datetime(contract: Contract) -> datetime.datetime:
     if contract.secType == "FUT":
-        _date = strptime(contract.lastTradeDateOrContractMonth)  # + datetime.timedelta(days=1)
+        _d = datetime.datetime.strptime(contract.lastTradeDateOrContractMonth, "%Y%m%d")
     else:
-        _date = datetime.datetime.now()
-    return to_utc(_date)
+        _d = datetime.datetime.now()
+    return to_utc(_d)
 
 
 def _update_end_datetime(
