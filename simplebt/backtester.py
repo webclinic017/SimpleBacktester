@@ -40,7 +40,11 @@ class Backtester:
         :param contracts: the order matters unless shuffle_events is set to True
         :param shuffle_events: whether to shuffle the events coming from different mkts
         """
+        if start_time.tzinfo != datetime.timezone.utc:
+            raise ValueError(f"Parameter start_time should have tzinfo=datetime.timezone.utc, got {start_time.tzinfo}")
         self.time = start_time
+        if end_time.tzinfo != datetime.timezone.utc:
+            raise ValueError(f"Parameter end_time should have tzinfo=datetime.timezone.utc, got {end_time.tzinfo}")
         self.end_time = end_time
         self.time_step = time_step
        
