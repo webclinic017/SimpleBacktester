@@ -47,3 +47,8 @@ class StrategyInterface(ABC):
         Series of actions to be done when there is a trade in the market.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def get_trades(self) -> List[StrategyTrade]:
+        """Return trades"""
+        raise NotImplementedError
