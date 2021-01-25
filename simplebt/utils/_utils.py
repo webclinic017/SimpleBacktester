@@ -4,16 +4,11 @@ from typing import Optional, Callable
 
 
 def to_utc(t: datetime.datetime) -> datetime.datetime:
-    if hasattr(t, "replace"):
-        return t.replace(tzinfo=datetime.timezone.utc)
-    else:
-        raise ValueError(f"t={t} of type {type(t)} is not a valid argument")
-
-
-def strptime(
-        datestr: str, tzinfo: Optional[datetime.timezone] = datetime.timezone.utc
-) -> datetime.datetime:
-    return datetime.datetime.strptime(datestr, "%Y%m%d").replace(tzinfo=tzinfo)
+    try:
+        t = t.astimezone(datetime.timezone.utc)
+        return t
+    except Exception as e:
+        raise e
 
 
 def is_prev_row_diff(s: pd.Series):
