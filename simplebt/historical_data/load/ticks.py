@@ -68,12 +68,12 @@ class TicksLoader(abc.ABC):
         def _rec():
             try:
                 df = next(self._chunks)
-                logger.debug(f"Loaded a new chunk: ix range {df.index[0]} - {df.index[-1]}")
+                logger.debug(f"{type(self).__name__} loaded a new chunk: ix range {df.index[0]} - {df.index[-1]}")
                 if df.index[0] == df.index[-1]:
-                    logger.debug("Start and end of index are equal. Need to recurse")
+                    logger.debug(f"{type(self).__name__}: start and end of the ticks df's index are equal. Need to recurse")
                     return pd.concat((df, _rec()), axis=0)
             except StopIteration:
-                logger.debug("Cathced StopIteration")
+                logger.debug(f"{type(self).__name__}: cathced StopIteration")
                 df = pd.DataFrame()
                 self.out_of_ticks = True
             return df
@@ -85,12 +85,12 @@ class TicksLoader(abc.ABC):
                 logger.warning(f"{type(self).__name__} is out of ticks baby! (time={time})")
                 return pd.DataFrame()
             elif self._ticks.index[0] <= time <= self._ticks.index[-1]:
-                logger.debug(f"{time} is within the range of the loaded ticks")
+                logger.debug(f"{type(self).__name__}: {time} is within the range of the loaded ticks")
                 return self._ticks.loc[time:time]
             else:
-                logger.debug(f"{time} is outside the loaded range: loading new chunk")
+                logger.debug(f"{type(self).__name__}: {time} is outside the loaded range: loading new chunk")
                 self._load_chunk()
-                logger.debug("Start another recursive search!")
+                logger.debug(f"{type(self).__name__}: Start another recursive get_ticks_by_time!")
                 return get_ticks_by_time_rec()
         return get_ticks_by_time_rec()
 
