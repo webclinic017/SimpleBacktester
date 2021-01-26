@@ -84,14 +84,14 @@ class Backtester:
 
     def run(self, save_path: pathlib.Path = None):
         while self.time <= self.end_time:
-            logger.info(f"Process time {self.time}")
+            logger.info(f"Next timestamp: {self.time}")
             self._set_mkts_time(time=self.time)
             
             mkt_events: queue.Queue = self._get_events_from_mkts()
             self._feed_events_to_strat(events=mkt_events)
 
             self.time += self.time_step
-        logger.info("hey brother, done backtesting")
+        logger.info("Hey jerk! We're done backtesting. You happy with the results?")
         if save_path:
             trades: List[StrategyTrade] = self.strat.get_trades()
             df = pd.DataFrame(
