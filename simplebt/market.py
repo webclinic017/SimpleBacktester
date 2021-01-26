@@ -80,7 +80,7 @@ class Market:
         """
         if self.time != time:
             self.time = time
-        self._cal_event = self._create_cal_events(time=time)
+        self._cal_event: Optional[Union[MktOpen, MktClose]] = self._update_cal_and_get_event(time=time)
 
         self._trades_ticks = self._trades_loader.get_ticks_batch_by_time(time=time)
         self._bidask_ticks = self._bidask_loader.get_ticks_batch_by_time(time=time)
@@ -106,13 +106,15 @@ class Market:
         if self._bidask_ticks.events:
             events.append(self._bidask_ticks)
         if not events:
-            # TODO: remove
             events.append(Nothing(time=self.time))
         return events
     
-    def _create_cal_events(self, time: datetime.datetime) -> Optional[Union[MktOpen, MktClose]]:
+    def _update_cal_and_get_event(self, time: datetime.datetime) -> Optional[Union[MktOpen, MktClose]]:
         is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(time))
         if is_mkt_open != self._is_mkt_open:
+            # first, update the class state
+            self._is_mkt_open = is_mkt_open
+            # second, yield the appropriate event
             if is_mkt_open:
                 return MktOpen(time=time)
             else:
