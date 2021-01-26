@@ -81,8 +81,8 @@ class TicksLoader(abc.ABC):
 
     def get_ticks_by_time(self, time: datetime.datetime) -> pd.DataFrame:
         def get_ticks_by_time_rec():
-            if self.out_of_ticks is True:
-                logger.debug("Out of ticks baby!")
+            if len(self._ticks) == 0 and self.out_of_ticks is True:
+                logger.warning(f"{type(self).__name__} is out of ticks baby! (time={time})")
                 return pd.DataFrame()
             elif self._ticks.index[0] <= time <= self._ticks.index[-1]:
                 logger.debug(f"{time} is within the range of the loaded ticks")
