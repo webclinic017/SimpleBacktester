@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import datetime
 from typing import List, Union
 from simplebt.events.generic import Event
 from simplebt.events.market import StrategyTrade
@@ -10,6 +11,9 @@ class StrategyInterface(ABC):
     This class defines the architecture of the Strategy.
     This class will have a concrete form for every different Strategy we want to write.
     """
+    @abstractmethod
+    def set_time(self, time: datetime.datetime):
+        raise NotImplementedError
 
     @abstractmethod
     def process_event(self, event: Union[Event, List[Event]]):

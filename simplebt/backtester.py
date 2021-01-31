@@ -75,22 +75,33 @@ class Backtester:
             q.put(e)
         return q
 
-    def _feed_events_to_strat(self, events: queue.Queue):
+    def _forward_strat_action(self, action):
+        if isinstance(action, Order):
+            self.mkts[action.contract.conId].add_order(action)
+
+    def _run_strat(self, events: queue.Queue):
+        #
+        action: Optional[Order] = self.strat.set_time(time=self.time)
+        if action:
+            self._forward_strat_action(action=action)
+
         while not events.empty():
             event = events.get_nowait()
-            action: Optional[Order] = self.strat.process_event(event)
-            if isinstance(action, Order):
-                self.mkts[action.contract.conId].add_order(action)
+            action = self.strat.process_event(event)
+            if action:
+                self._forward_strat_action(action=action)
 
     def run(self, save_path: pathlib.Path = None):
         while self.time <= self.end_time:
             logger.info(f"Next timestamp: {self.time}")
+
             self._set_mkts_time(time=self.time)
-            
             mkt_events: queue.Queue = self._get_events_from_mkts()
-            self._feed_events_to_strat(events=mkt_events)
+
+            self._run_strat(events=mkt_events)
 
             self.time += self.time_step
+
         logger.info("Hey jerk! We're done backtesting. You happy with the results?")
         if save_path:
             trades: List[StrategyTrade] = self.strat.get_trades()
@@ -99,4 +110,3 @@ class Backtester:
                 columns=["time", "price", "lots", "order_time"]
             )
             df.to_csv(save_path)
- 
