@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 import datetime
 from typing import List, Union
 from simplebt.events.generic import Event
@@ -6,15 +7,15 @@ from simplebt.events.market import StrategyTrade
 from simplebt.events.batches import ChangeBestBatch, MktTradeBatch
 from simplebt.orders import Order
 
-
+@dataclass(frozen=True)
 class Action(ABC):
     time: datetime.datetime
 
-
+@dataclass(frozen=True)
 class PlaceOrder(Action):
     order: Order
 
-
+@dataclass(frozen=True)
 class CancelOrder(Action):
     order: Order
 
