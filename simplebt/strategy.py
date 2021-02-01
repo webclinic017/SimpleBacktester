@@ -4,6 +4,19 @@ from typing import List, Union
 from simplebt.events.generic import Event
 from simplebt.events.market import StrategyTrade
 from simplebt.events.batches import ChangeBestBatch, MktTradeBatch
+from simplebt.orders import Order
+
+
+class Action(ABC):
+    time: datetime.datetime
+
+
+class PlaceOrder(Action):
+    order: Order
+
+
+class CancelOrder(Action):
+    order: Order
 
 
 class StrategyInterface(ABC):

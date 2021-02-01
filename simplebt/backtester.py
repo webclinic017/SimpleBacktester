@@ -10,9 +10,9 @@ import ib_insync as ibi
 
 from simplebt.events.generic import Event
 from simplebt.market import Market
-from simplebt.events.orders import Order
 from simplebt.events.market import StrategyTrade
-from simplebt.strategy import StrategyInterface
+from simplebt.orders import Order
+from simplebt.strategy import StrategyInterface, PlaceOrder, CancelOrder
 
 # NOTE: The queue lib still doesn't go well with type annotations
 #  Using queue.Queue[Event] raises the Exception: type object is not subscriptable
@@ -31,7 +31,6 @@ class Backtester:
         start_time: datetime.datetime,
         end_time: datetime.datetime,
         time_step: datetime.timedelta,
-        latency: bool,
         data_dir: pathlib.Path,
         chunksize: int = None,
         shuffle_events: bool = None,
@@ -53,7 +52,7 @@ class Backtester:
             chunksize = int(1e6)
         self.strat = strat
         self.mkts: Dict[int, Market] = {
-            c.conId: Market(contract=c, start_time=start_time, latency=latency, data_dir=data_dir, chunksize=chunksize)
+            c.conId: Market(contract=c, start_time=start_time, data_dir=data_dir, chunksize=chunksize)
             for c in contracts
         }
 
@@ -76,11 +75,15 @@ class Backtester:
         return q
 
     def _forward_strat_action(self, action):
-        if isinstance(action, Order):
-            self.mkts[action.contract.conId].add_order(action)
+        event: Optional[Event] = None
+        if isinstance(action, PlaceOrder):
+            event = self.mkts[action.order.contract.conId].add_order(action.order)
+        elif isinstance(action, CancelOrder):
+            event = self.mkts[action.order.contract.conId].cancel_order(action.order)
+        if event:
+            self._events.put(event)
 
     def _run_strat(self, events: queue.Queue):
-        #
         action: Optional[Order] = self.strat.set_time(time=self.time)
         if action:
             self._forward_strat_action(action=action)
