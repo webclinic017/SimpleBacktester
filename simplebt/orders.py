@@ -22,10 +22,10 @@ class Order(abc.ABC):
         self.id = None
         self.received: bool = False
         self.active: bool = True
-
-    def validate(self, time: datetime.datetime):
-        """To be called by the mkt when the order is validated"""
         self.id = f"{time.timestamp()}{self.contract.symbol}{self.lots}{self.side}"  # pseudo-random id
+
+    def validate(self):
+        """To be called by the mkt when the order is validated"""
         self.received = True
         self.active = True
 

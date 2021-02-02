@@ -26,7 +26,7 @@ class StrategyInterface(ABC):
     This class will have a concrete form for every different Strategy we want to write.
     """
     @abstractmethod
-    def set_time(self, time: datetime.datetime):
+    def set_time(self, time: datetime.datetime) -> List[Action]:
         raise NotImplementedError
 
     @abstractmethod

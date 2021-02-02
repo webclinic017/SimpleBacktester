@@ -11,7 +11,7 @@ from simplebt.historical_data.load.ticks import BidAskTicksLoader, TradesTicksLo
 from simplebt.events.generic import Event, Nothing
 from simplebt.events.batches import ChangeBestBatch, MktTradeBatch
 from simplebt.book import BookL0
-from simplebt.orders import Order, MktOrder
+from simplebt.orders import Order, LmtOrder, MktOrder
 from simplebt.events.orders import OrderCanceled, OrderReceived
 
 
@@ -62,7 +62,7 @@ class Market:
 
     def add_order(self, order: Order) -> OrderReceived:
         # validate order and add ID
-        order.validate(time=self.time)
+        order.validate()
         self._pending_orders.append(order)
         return OrderReceived(order=order, time=self.time)
 
@@ -78,7 +78,7 @@ class Market:
         """
         if self.time != time:
             self.time = time
-        self._cal_event: Optional[Union[MktOpen, MktClose]] = self._update_cal_and_get_event(time=time)
+        self._cal_event = self._update_cal_and_get_event(time=time)
 
         self._trades_ticks = self._trades_loader.get_ticks_batch_by_time(time=time)
         self._bidask_ticks = self._bidask_loader.get_ticks_batch_by_time(time=time)

@@ -12,7 +12,7 @@ from simplebt.events.generic import Event
 from simplebt.market import Market
 from simplebt.events.market import StrategyTrade
 from simplebt.orders import Order
-from simplebt.strategy import StrategyInterface, PlaceOrder, CancelOrder
+from simplebt.strategy import StrategyInterface, PlaceOrder, CancelOrder, Action
 
 # NOTE: The queue lib still doesn't go well with type annotations
 #  Using queue.Queue[Event] raises the Exception: type object is not subscriptable
@@ -84,9 +84,9 @@ class Backtester:
             self._events.put(event)
 
     def _run_strat(self, events: queue.Queue):
-        action: Optional[Order] = self.strat.set_time(time=self.time)
-        if action:
-            self._forward_strat_action(action=action)
+        actions: List[Action] = self.strat.set_time(time=self.time)
+        for a in actions:
+            self._forward_strat_action(action=a)
 
         while not events.empty():
             event = events.get_nowait()
