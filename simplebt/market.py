@@ -1,4 +1,3 @@
-# TODO: sort ticks by pk doesn't work
 import datetime
 import pathlib
 import random
@@ -12,21 +11,20 @@ from simplebt.historical_data.load.ticks import BidAskTicksLoader, TradesTicksLo
 from simplebt.events.generic import Event, Nothing
 from simplebt.events.batches import ChangeBestBatch, MktTradeBatch
 from simplebt.book import BookL0
-from simplebt.events.orders import Order, MktOrder, LmtOrder
+from simplebt.orders import Order, LmtOrder, MktOrder
+from simplebt.events.orders import OrderCanceled, OrderReceived
 
 
 class Market:
     def __init__(
         self,
         start_time: datetime.datetime,
-        latency: bool,
         contract: ibi.Contract,
         data_dir: pathlib.Path,
         chunksize: int
     ):
         self.time = start_time
         self.contract = contract
-        self.latency = latency
 
         # NOTE: beware this might not be accurate
         self.calendar: tc.TradingCalendar = tc.get_calendar(contract.exchange)
@@ -37,7 +35,6 @@ class Market:
 
         self._pending_orders: List[Order] = []
 
-        self._zero_latency_events: List[Event] = []
         # The following collections/variables can be accessed by self.get_events()
         self._trades_ticks = MktTradeBatch(events=[], time=start_time)
         self._bidask_ticks = ChangeBestBatch(events=[], time=start_time)
@@ -63,15 +60,16 @@ class Market:
             best = self._best
         return best
 
-    def add_order(self, order: Order):
-        if not self.latency:
-            trade: Optional[StrategyTrade] = self._process_order(order)
-            if trade:
-                self._zero_latency_events.append(trade)
-            else:
-                self._pending_orders.append(order)
-        else:
-            self._pending_orders.append(order)
+    def add_order(self, order: Order) -> OrderReceived:
+        # validate order and add ID
+        order.validate()
+        self._pending_orders.append(order)
+        return OrderReceived(order=order, time=self.time)
+
+    def cancel_order(self, order: Order) -> OrderCanceled:
+        order.cancel()
+        self._pending_orders = [o for o in self._pending_orders if o != order]
+        return OrderCanceled(order=order, time=self.time)
 
     def set_time(self, time: datetime.datetime):
         """
@@ -80,7 +78,7 @@ class Market:
         """
         if self.time != time:
             self.time = time
-        self._cal_event: Optional[Union[MktOpen, MktClose]] = self._update_cal_and_get_event(time=time)
+        self._cal_event = self._update_cal_and_get_event(time=time)
 
         self._trades_ticks = self._trades_loader.get_ticks_batch_by_time(time=time)
         self._bidask_ticks = self._bidask_loader.get_ticks_batch_by_time(time=time)
@@ -95,8 +93,6 @@ class Market:
 
     def get_events(self) -> List[Event]:
         events: List[Event] = []  # FIFO
-        while self._zero_latency_events:
-            events.append(self._zero_latency_events.pop(0))
         if self._cal_event:
             events.append(self._cal_event)
         if self._strat_trades:

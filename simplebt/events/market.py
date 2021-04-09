@@ -1,7 +1,7 @@
 import datetime
 from dataclasses import dataclass
 from simplebt.book import BookL0
-from simplebt.events.orders import Order
+from simplebt.orders import Order
 from simplebt.events.generic import Event
 
 
