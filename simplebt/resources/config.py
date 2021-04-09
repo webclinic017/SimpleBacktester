@@ -4,7 +4,7 @@ import tempfile
 
 PGHOST = "localhost"
 PGPORT = os.environ.get("PGPORT") or "5432"
-PGUSER = os.environ.get("PGUSER") or "gulo"
+PGUSER = "gulo"
 PGDATABASE = "gulo"
 PGPASSWORD = os.environ.get("PGPASSWORD") or ""
 
