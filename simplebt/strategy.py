@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import datetime
-from typing import List, Union
-from simplebt.events.generic import Event
+from typing import List, Set
 from simplebt.events.market import StrategyTrade
-from simplebt.events.batches import ChangeBestBatch, MktTradeBatch
+from simplebt.events.batches import PendingTicker
 from simplebt.orders import Order
 
 @dataclass(frozen=True)
@@ -30,40 +29,34 @@ class StrategyInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def process_event(self, event: Union[Event, List[Event]]):
+    def on_pending_tickers(self, event: Set[PendingTicker]):
         """
-        Practically a scala pattern match case
-        Process a single event or a list of events (since we might receive 'em in batches)
-        and forward them to the appropriate method
+        Series of actions to be done when the first level of a book changes
+        or there is a new trade in the market
         """
         raise NotImplementedError
 
     # @abstractmethod
-    # def on_book_creation(self, book: Book) -> None:
-    #     """
-    #     Series of actions to be done when the first book is created.
-    #     """
-    #     pass
+    # def on_change_best(self, event: ChangeBestBatch):
+    #     raise NotImplementedError
+
+    # @abstractmethod
+    # def on_market_trade(self, event: MktTradeBatch):
+    #     raise NotImplementedError
 
     @abstractmethod
-    def on_change_best(self, event: ChangeBestBatch):
-        """
-        Series of actions to be done when the first level of a book changes.
-        """
+    def on_new_order_event(self, order: Order):
         raise NotImplementedError
-    
+
     @abstractmethod
-    def on_strategy_trade(self, event: StrategyTrade):
+    def on_fill(self, event: StrategyTrade):
         """
         Series of actions to be done when there is a proprietary trade.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def on_market_trade(self, event: MktTradeBatch):
-        """
-        Series of actions to be done when there is a trade in the market.
-        """
+    def on_pnl(self, event: PnL):
         raise NotImplementedError
 
     @abstractmethod

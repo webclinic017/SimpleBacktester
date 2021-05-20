@@ -5,15 +5,6 @@ from simplebt.orders import Order
 from simplebt.events.generic import Event
 
 
-# Created by the strategy
-@dataclass(frozen=True)
-class StrategyTrade(Event):
-    time: datetime.datetime
-    price: float
-    lots: int  # positive or negative
-    order: Order  # IBKR returns the order associated with the trade
-
-
 # Market Events
 @dataclass(frozen=True)
 class ChangeBest(Event):
