@@ -1,6 +1,7 @@
 import datetime
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class BookL0:
     bid: float
