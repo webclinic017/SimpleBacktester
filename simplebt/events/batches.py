@@ -25,5 +25,5 @@ class PendingTickerEvent(Event):
 
 
 @dataclass(frozen=True)
-class PendingTickersEvent(Event):
+class PendingTickerSetEvent(Event):
     events: Set[PendingTickerEvent]
