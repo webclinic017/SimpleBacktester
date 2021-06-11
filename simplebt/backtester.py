@@ -182,7 +182,7 @@ class Backtester:
         if save_path:
             trades: List[StrategyTrade] = self.strat.get_trades()
             df = pd.DataFrame(
-                [(t.time, t.price, t.lots, t.order.time) for t in trades],
-                columns=["time", "price", "lots", "order_time"]
+                [(t.time, t.fills, t.order) for t in trades],
+                columns=["time", "fills", "order"]
             )
             df.to_csv(save_path)
