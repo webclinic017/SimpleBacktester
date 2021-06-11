@@ -1,29 +1,25 @@
 import datetime
 from dataclasses import dataclass
 from simplebt.book import BookL0
-from simplebt.orders import Order
 from simplebt.events.generic import Event
+from simplebt.trade import StrategyTrade, Fill
 
 
-# Created by the strategy
 @dataclass(frozen=True)
-class StrategyTrade(Event):
+class FillEvent(Event):
     time: datetime.datetime
-    price: float
-    lots: int  # positive or negative
-    order: Order  # IBKR returns the order associated with the trade
+    fill: Fill
+    trade: StrategyTrade
 
 
-# Market Events
 @dataclass(frozen=True)
-class ChangeBest(Event):
+class ChangeBestEvent(Event):
     time: datetime.datetime
     best: BookL0
 
 
-# TODO: make market trade object and then add event
 @dataclass(frozen=True)
-class MktTrade(Event):
+class MktTradeEvent(Event):
     time: datetime.datetime
     price: float
     size: int
@@ -31,10 +27,10 @@ class MktTrade(Event):
 
 # Market Calendar Events
 @dataclass(frozen=True)
-class MktOpen(Event):
+class MktOpenEvent(Event):
     time: datetime.datetime
 
 
 @dataclass(frozen=True)
-class MktClose(Event):
+class MktCloseEvent(Event):
     time: datetime.datetime
