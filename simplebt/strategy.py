@@ -1,22 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import datetime
-from typing import List, Set
-from simplebt.events.market import StrategyTrade
+from typing import List, Set, Union
+
+from simplebt.events.orders import OrderReceived, OrderCanceled
+from simplebt.trade import StrategyTrade, Fill
 from simplebt.events.batches import PendingTicker
 from simplebt.orders import Order
-
-@dataclass(frozen=True)
-class Action(ABC):
-    time: datetime.datetime
-
-@dataclass(frozen=True)
-class PlaceOrder(Action):
-    order: Order
-
-@dataclass(frozen=True)
-class CancelOrder(Action):
-    order: Order
+from simplebt.position import PnLSingle
 
 
 class StrategyInterface(ABC):
@@ -25,7 +16,7 @@ class StrategyInterface(ABC):
     This class will have a concrete form for every different Strategy we want to write.
     """
     @abstractmethod
-    def set_time(self, time: datetime.datetime) -> List[Action]:
+    def set_time(self, time: datetime.datetime):
         raise NotImplementedError
 
     @abstractmethod
@@ -45,18 +36,18 @@ class StrategyInterface(ABC):
     #     raise NotImplementedError
 
     @abstractmethod
-    def on_new_order_event(self, order: Order):
+    def on_new_order_event(self, order: Union[OrderReceived, OrderCanceled]):
         raise NotImplementedError
 
     @abstractmethod
-    def on_fill(self, event: StrategyTrade):
+    def on_fill(self, event: StrategyTrade, fill: Fill):
         """
         Series of actions to be done when there is a proprietary trade.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def on_pnl(self, event: PnL):
+    def on_pnl(self, event: PnLSingle):
         raise NotImplementedError
 
     @abstractmethod

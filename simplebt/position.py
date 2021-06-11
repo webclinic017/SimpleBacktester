@@ -1,9 +1,8 @@
 import ib_insync as ibi
 import numpy as np
 from dataclasses import dataclass
-from typing import Dict
-
-from simplebt.events.market import StrategyTrade
+from typing import List
+from simplebt.trade import StrategyTrade
 
 
 class Position:

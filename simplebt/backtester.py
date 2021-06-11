@@ -71,16 +71,16 @@ class Backtester:
     def schedule(self, *args, **kwargs):
         pass
 
-    def place_order(self, order: Order):
+    def place_order(self, order: Order) -> StrategyTrade:
         mkt: Market = self.mkts[order.contract.conId]
-        order_received: OrderReceived = mkt.add_order(order=order)
-        self._events.put(order_received)
+        trade: StrategyTrade = mkt.add_order(order=order)
+        self._events.put(OrderReceived(time=trade.time, order=trade.order))
 
-    def cancel_order(self, order: Order):
+    def cancel_order(self, order: Order) -> StrategyTrade:
         mkt: Market = self.mkts[order.contract.conId]
         if random.randint(0, 10) > 1:  # some randomness here
-            order_canceled: OrderCanceled = mkt.cancel_order(order=order)
-            self._events.put(order_canceled)
+            canceled_trade: StrategyTrade = mkt.cancel_order(order=order)
+            self._events.put(OrderCanceled(time=canceled_trade.time, order=canceled_trade.order))
 
     def _update_positions(self, fills: List[StrategyTrade]):
         def update_single_position(position: Position):
@@ -148,25 +148,15 @@ class Backtester:
                 pnls.append(PnLSingle(conId=ticker.contract.conId, unrealizedPnL=pnl))
         return pnls
 
-    def _execute_strat_action(self, action):
-        event: Optional[Event] = None
-        if isinstance(action, PlaceOrder):
-            event = self.mkts[action.order.contract.conId].add_order(action.order)
-        elif isinstance(action, CancelOrder):
-            event = self.mkts[action.order.contract.conId].cancel_order(action.order)
-        if event:
-            self._events.put(event)
-
     def _run_strat(self, events: queue.Queue):
-        actions: List[Action] = self.strat.set_time(time=self.time)
-        for a in actions:
-            self._execute_strat_action(action=a)
-
+        def _match_case(event):
+            if isinstance(event, Set[PendingTicker]):
+                self.strat.on_pending_tickers(event)
+            elif isinstance(event, Union[OrderReceived, OrderCanceled]):
+                self.strat.on_new_order_event(event.order)
+        self.strat.set_time(time=self.time)
         while not events.empty():
             event = events.get_nowait()
-            action = self.strat.process_event(event)
-            if action:
-                self._execute_strat_action(action=action)
 
     def run(self, save_path: pathlib.Path = None):
         while self.time <= self.end_time:
