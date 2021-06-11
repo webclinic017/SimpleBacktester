@@ -4,10 +4,10 @@ from simplebt import orders
 
 
 @dataclass(frozen=True)
-class OrderReceived(Event):
+class OrderReceivedEvent(Event):
     order: orders.Order
 
 
 @dataclass(frozen=True)
-class OrderCanceled(Event):
+class OrderCanceledEvent(Event):
     order: orders.Order

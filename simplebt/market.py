@@ -6,9 +6,9 @@ import ib_insync as ibi
 import pandas as pd
 import trading_calendars as tc
 
-from simplebt.events.market import MktOpen, MktClose, MktTrade, ChangeBest
+from simplebt.events.market import MktOpenEvent, MktCloseEvent, MktTradeEvent, ChangeBestEvent
 from simplebt.historical_data.load.ticks import BidAskTicksLoader, TradesTicksLoader
-from simplebt.events.batches import ChangeBestBatch, MktTradeBatch, PendingTicker
+from simplebt.events.batches import ChangeBestBatchEvent, MktTradeBatchEvent, PendingTickerEvent
 from simplebt.book import BookL0
 from simplebt.orders import Order, LmtOrder, MktOrder
 # from simplebt.events.orders import OrderCanceled, OrderReceived
@@ -36,10 +36,10 @@ class Market:
         self._trades_with_pending_orders: List[StrategyTrade] = []
 
         # The following collections/variables can be accessed by self.get_events()
-        self._trades_ticks = MktTradeBatch(events=[], time=start_time)
-        self._bidask_ticks = ChangeBestBatch(events=[], time=start_time)
+        self._trades_ticks = MktTradeBatchEvent(events=[], time=start_time)
+        self._bidask_ticks = ChangeBestBatchEvent(events=[], time=start_time)
         self._best: BookL0 = BookL0(time=start_time, bid=-1, ask=-1, bid_size=0, ask_size=0)
-        self._cal_event: Optional[Union[MktOpen, MktClose]] = None
+        self._cal_event: Optional[Union[MktOpenEvent, MktCloseEvent]] = None
         self._fills: List[Tuple[StrategyTrade, Fill]] = []
         # this method may populate the collections above
         self.set_time(time=self.time)
@@ -97,12 +97,12 @@ class Market:
     def get_fills(self) -> List[Tuple[StrategyTrade, Fill]]:
         return self._fills
 
-    def get_pending_ticker(self) -> Optional[PendingTicker]:
-        events: List[Union[ChangeBest, MktTrade]] = []
+    def get_pending_ticker(self) -> Optional[PendingTickerEvent]:
+        events: List[Union[ChangeBestEvent, MktTradeEvent]] = []
         events += self._trades_ticks.events if self._trades_ticks.events else []
         events += self._bidask_ticks.events if self._bidask_ticks.events else []
         if events:
-            ticker = PendingTicker(
+            ticker = PendingTickerEvent(
                 contract=self.contract,
                 events=events,
                 time=self._bidask_ticks.time or self._trades_ticks.time
@@ -138,16 +138,16 @@ class Market:
     #         events.append(Nothing(time=self.time))
     #     return events
     
-    def _update_cal_and_get_event(self, time: datetime.datetime) -> Optional[Union[MktOpen, MktClose]]:
+    def _update_cal_and_get_event(self, time: datetime.datetime) -> Optional[Union[MktOpenEvent, MktCloseEvent]]:
         is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(time))
         if is_mkt_open != self._is_mkt_open:
             # first, update the class state
             self._is_mkt_open = is_mkt_open
             # second, yield the appropriate event
             if is_mkt_open:
-                return MktOpen(time=time)
+                return MktOpenEvent(time=time)
             else:
-                return MktClose(time=time)
+                return MktCloseEvent(time=time)
         return None
 
     def _process_pending_orders(self) -> List[Tuple[StrategyTrade, Fill]]:

@@ -3,9 +3,9 @@ from dataclasses import dataclass
 import datetime
 from typing import List, Set, Union
 
-from simplebt.events.orders import OrderReceived, OrderCanceled
+from simplebt.events.orders import OrderReceivedEvent, OrderCanceledEvent
 from simplebt.trade import StrategyTrade, Fill
-from simplebt.events.batches import PendingTicker
+from simplebt.events.batches import PendingTickerEvent
 from simplebt.orders import Order
 from simplebt.position import PnLSingle
 
@@ -20,7 +20,7 @@ class StrategyInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def on_pending_tickers(self, event: Set[PendingTicker]):
+    def on_pending_tickers(self, tickers: Set[PendingTickerEvent]):
         """
         Series of actions to be done when the first level of a book changes
         or there is a new trade in the market
@@ -36,18 +36,18 @@ class StrategyInterface(ABC):
     #     raise NotImplementedError
 
     @abstractmethod
-    def on_new_order_event(self, order: Union[OrderReceived, OrderCanceled]):
+    def on_new_order_event(self, order: Union[OrderReceivedEvent, OrderCanceledEvent]):
         raise NotImplementedError
 
     @abstractmethod
-    def on_fill(self, event: StrategyTrade, fill: Fill):
+    def on_fill(self, trade: StrategyTrade, fill: Fill):
         """
         Series of actions to be done when there is a proprietary trade.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def on_pnl(self, event: PnLSingle):
+    def on_pnl(self, pnl: PnLSingle):
         raise NotImplementedError
 
     @abstractmethod
