@@ -113,7 +113,7 @@ class Backtester:
 
         fill_events: List[FillEvent] = _get_mkts_fills()
         pending_ticker_events: PendingTickerSetEvent = _get_pending_tickers()
-        pnl_events: List[PnLSingleEvent] = list(itertools.chain(*(self._get_pnl_events(ticker=t) for t in pending_ticker_events)))
+        pnl_events: List[PnLSingleEvent] = list(itertools.chain(*(self._get_pnl_events(ticker=t) for t in pending_ticker_events.events)))
 
         q: "queue.Queue[Event]" = queue.Queue()
         # NOTE: The order I insert events in the queue is debatable
