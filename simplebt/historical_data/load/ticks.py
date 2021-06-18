@@ -8,14 +8,14 @@ from typing import List, Dict, Generator
 from ib_insync import Contract
 from simplebt.db import DbTicks
 from simplebt.resources.config import DELIMITER, DATA_DIR
-from simplebt.events.market import ChangeBest, MktTrade
-from simplebt.events.batches import ChangeBestBatch, MktTradeBatch
+from simplebt.events.market import ChangeBestEvent, MktTradeEvent
+from simplebt.events.batches import ChangeBestBatchEvent, MktTradeBatchEvent
 from simplebt.book import BookL0
 from simplebt.utils import to_utc
 
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = logging.getLogger("TicksLoader")
+
 
 class TicksLoader(abc.ABC):
     def __init__(
@@ -116,14 +116,14 @@ class BidAskTicksLoader(TicksLoader):
             chunksize=chunksize
         )
 
-    def get_ticks_batch_by_time(self, time: datetime.datetime) -> ChangeBestBatch:
+    def get_ticks_batch_by_time(self, time: datetime.datetime) -> ChangeBestBatchEvent:
         ticks_df = self.get_ticks_by_time(time=time)
-        event_list: List[ChangeBest] = []
+        event_list: List[ChangeBestEvent] = []
         for bid, ask, bid_size, ask_size in ticks_df.itertuples(index=False):
             l0 = BookL0(bid=bid, ask=ask, bid_size=bid_size, ask_size=ask_size, time=time)
-            event = ChangeBest(best=l0, time=time)
+            event = ChangeBestEvent(best=l0, time=time)
             event_list.append(event)
-        return ChangeBestBatch(events=event_list, time=time)
+        return ChangeBestBatchEvent(events=event_list, time=time)
 
 
 class TradesTicksLoader(TicksLoader):
@@ -138,10 +138,10 @@ class TradesTicksLoader(TicksLoader):
             chunksize=chunksize
         )
 
-    def get_ticks_batch_by_time(self, time: datetime.datetime) -> MktTradeBatch:
+    def get_ticks_batch_by_time(self, time: datetime.datetime) -> MktTradeBatchEvent:
         ticks_df = self.get_ticks_by_time(time=time)
         event_list = []
         for price, size in ticks_df.itertuples(index=False):
-            trade = MktTrade(price=price, size=size, time=time)
+            trade = MktTradeEvent(price=price, size=size, time=time)
             event_list.append(trade)
-        return MktTradeBatch(events=event_list, time=time)
+        return MktTradeBatchEvent(events=event_list, time=time)

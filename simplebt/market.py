@@ -1,18 +1,17 @@
 import datetime
 import pathlib
 import random
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Tuple
 import ib_insync as ibi
 import pandas as pd
 import trading_calendars as tc
 
-from simplebt.events.market import MktOpen, MktClose, StrategyTrade
+from simplebt.events.market import MktOpenEvent, MktCloseEvent, MktTradeEvent, ChangeBestEvent, FillEvent
 from simplebt.historical_data.load.ticks import BidAskTicksLoader, TradesTicksLoader
-from simplebt.events.generic import Event, Nothing
-from simplebt.events.batches import ChangeBestBatch, MktTradeBatch
+from simplebt.events.batches import ChangeBestBatchEvent, MktTradeBatchEvent, PendingTickerEvent
 from simplebt.book import BookL0
 from simplebt.orders import Order, LmtOrder, MktOrder
-from simplebt.events.orders import OrderCanceled, OrderReceived
+from simplebt.trade import StrategyTrade, Fill
 
 
 class Market:
@@ -23,26 +22,26 @@ class Market:
         data_dir: pathlib.Path,
         chunksize: int
     ):
-        self.time = start_time
+        self.time: datetime.datetime = start_time
         self.contract = contract
 
         # NOTE: beware this might not be accurate
         self.calendar: tc.TradingCalendar = tc.get_calendar(contract.exchange)
         self._is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(self.time))
+        self._best: BookL0 = BookL0(time=start_time, bid=-1, ask=-1, bid_size=0, ask_size=0)
 
         self._trades_loader = TradesTicksLoader(contract, chunksize=chunksize, data_dir=data_dir)
         self._bidask_loader = BidAskTicksLoader(contract, chunksize=chunksize, data_dir=data_dir)
 
-        self._pending_orders: List[Order] = []
+        self._trades_with_pending_orders: List[StrategyTrade] = []
 
-        # The following collections/variables can be accessed by self.get_events()
-        self._trades_ticks = MktTradeBatch(events=[], time=start_time)
-        self._bidask_ticks = ChangeBestBatch(events=[], time=start_time)
-        self._best: BookL0 = BookL0(time=start_time, bid=-1, ask=-1, bid_size=0, ask_size=0)
-        self._cal_event: Optional[Union[MktOpen, MktClose]] = None
-        self._strat_trades: List[StrategyTrade] = []
-        # this method may populate the collections above
-        self.set_time(time=self.time)
+        # Events
+        self._cal_events: Optional[Union[MktOpenEvent, MktCloseEvent]] = None
+        self._trades_events = MktTradeBatchEvent(events=[], time=start_time)
+        self._change_best_events = ChangeBestBatchEvent(events=[], time=start_time)
+        self._fill_events: List[FillEvent] = []
+
+        self.set_time(time=self.time)  # This method may populate the collections above
 
     def get_book_best(self) -> BookL0:
         return self._best
@@ -54,22 +53,25 @@ class Market:
         a 1 sec interval.
         If new changeBest (bid ask) ticks are available, pick a random one. Otherwise return self._best
         """
-        if self._bidask_ticks.events:
-            best: BookL0 = random.choice(self._bidask_ticks.events).best
+        if self._change_best_events.events:
+            best: BookL0 = random.choice(self._change_best_events.events).best
         else:  # otherwise default to the L0 retrieved from the latest changeBest
             best = self._best
         return best
 
-    def add_order(self, order: Order) -> OrderReceived:
+    def add_order(self, order: Order) -> StrategyTrade:
         # validate order and add ID
-        order.validate()
-        self._pending_orders.append(order)
-        return OrderReceived(order=order, time=self.time)
+        order.submitted()
+        trade = StrategyTrade(order)
+        self._trades_with_pending_orders.append(trade)
+        return trade
 
-    def cancel_order(self, order: Order) -> OrderCanceled:
-        order.cancel()
-        self._pending_orders = [o for o in self._pending_orders if o != order]
-        return OrderCanceled(order=order, time=self.time)
+    def cancel_order(self, order: Order) -> StrategyTrade:
+        corresponding_trade = next(filter(lambda t: t.order == order, self._trades_with_pending_orders))
+        self._trades_with_pending_orders.remove(corresponding_trade)
+        order.cancelled()
+        corresponding_trade.order = order
+        return corresponding_trade
 
     def set_time(self, time: datetime.datetime):
         """
@@ -78,85 +80,99 @@ class Market:
         """
         if self.time != time:
             self.time = time
-        self._cal_event = self._update_cal_and_get_event(time=time)
+        self._cal_events = self._update_cal_and_get_event(time=time)
 
-        self._trades_ticks = self._trades_loader.get_ticks_batch_by_time(time=time)
-        self._bidask_ticks = self._bidask_loader.get_ticks_batch_by_time(time=time)
+        self._trades_events = self._trades_loader.get_ticks_batch_by_time(time=time)
+        self._change_best_events = self._bidask_loader.get_ticks_batch_by_time(time=time)
+        if self._change_best_events.events:
+            self._best = self._change_best_events.events[-1].best
 
-        if self._bidask_ticks.events:
-            self._best = self._bidask_ticks.events[-1].best
+        self._fill_events = self._process_pending_orders()  # Will just return an empty list if the mkt is closed
 
-        if self._is_mkt_open:
-            self._strat_trades = self._process_pending_orders()
-        else:
-            self._strat_trades = []
+    def get_fills(self) -> List[FillEvent]:
+        return self._fill_events
 
-    def get_events(self) -> List[Event]:
-        events: List[Event] = []  # FIFO
-        if self._cal_event:
-            events.append(self._cal_event)
-        if self._strat_trades:
-            events += self._strat_trades  # append as single events
-        if self._trades_ticks.events:
-            events.append(self._trades_ticks)  # append as batch
-        if self._bidask_ticks.events:
-            events.append(self._bidask_ticks)
-        if not events:
-            events.append(Nothing(time=self.time))
-        return events
-    
-    def _update_cal_and_get_event(self, time: datetime.datetime) -> Optional[Union[MktOpen, MktClose]]:
+    def get_pending_ticker(self) -> Optional[PendingTickerEvent]:
+        events: List[Union[ChangeBestEvent, MktTradeEvent]] = []
+        events += self._trades_events.events if self._trades_events.events else []
+        events += self._change_best_events.events if self._change_best_events.events else []
+        if events:
+            ticker = PendingTickerEvent(
+                contract=self.contract,
+                events=events,
+                time=self._change_best_events.time or self._trades_events.time
+            )
+            return ticker
+
+    def _update_cal_and_get_event(self, time: datetime.datetime) -> Optional[Union[MktOpenEvent, MktCloseEvent]]:
         is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(time))
         if is_mkt_open != self._is_mkt_open:
             # first, update the class state
             self._is_mkt_open = is_mkt_open
             # second, yield the appropriate event
             if is_mkt_open:
-                return MktOpen(time=time)
+                return MktOpenEvent(time=time)
             else:
-                return MktClose(time=time)
+                return MktCloseEvent(time=time)
         return None
 
-    def _process_pending_orders(self) -> List[StrategyTrade]:
-        trades: List[StrategyTrade] = []
+    def _process_pending_orders(self) -> List[FillEvent]:
+        fill_events: List[FillEvent] = []
         if self._is_mkt_open:
-            not_matched: List[Order] = []
-            for order in self._pending_orders:
-                trade: Optional[StrategyTrade] = self._process_order(order)
-                if trade:
-                    trades.append(trade)
-                else:
-                    # NOTE: treating everything as a Good Til Cancelled for the moment
-                    not_matched.append(order)
-            self._pending_orders = not_matched
-        return trades
+            not_filled: List[StrategyTrade] = []
+            for trade_with_pending_order in self._trades_with_pending_orders:
+                trade, fill = self._process_order(trade_with_pending_order)
+                if fill:
+                    fill_events.append(FillEvent(time=self.time, trade=trade, fill=fill))
+                # Using if instead of elif here
+                # because even if there was a fill, the original order might not be completely filled yet
+                if not trade.filled():
+                    not_filled.append(trade_with_pending_order)  # treating everything as a Good Til Cancelled for the moment
+            self._trades_with_pending_orders = not_filled
+        return fill_events
 
-    def _process_order(self, order: Order) -> Optional[StrategyTrade]:
-        trade: Optional[StrategyTrade] = None
-        if isinstance(order, MktOrder):
-            trade = self._exec_mkt_order(order=order)
-        elif isinstance(order, LmtOrder):
-            trade = self._exec_lmt_order(order=order)
-        return trade
+    def _process_order(self, trade: StrategyTrade) -> Tuple[StrategyTrade, Optional[Fill]]:
+        fill: Optional[Fill] = None
+        if isinstance(trade.order, MktOrder):
+            fill = self._exec_mkt_order(order=trade.order)
+        elif isinstance(trade.order, LmtOrder):
+            fill = self._exec_lmt_order(order=trade.order)
 
-    def _exec_mkt_order(self, order: MktOrder) -> Optional[StrategyTrade]:
+        if fill:
+            trade.add_fill(fill)
+        return trade, fill
+
+    def _exec_mkt_order(self, order: MktOrder) -> Optional[Fill]:
         best: BookL0 = self._get_book_best()
+        price: Optional[float] = None
         # pick the side according to the order type (Long vs Short)
         if order.lots > 0:
-            price = best.ask
-            if best.ask_size < order.lots:
-                return None
+            # Don't have book depth, approximate
+            if best.ask_size >= order.lots:
+                price = best.ask
         else:
-            price = best.bid
-            if best.bid_size < abs(order.lots):
-                return None
-        trade = StrategyTrade(
-            time=self.time,
-            price=price,
-            lots=order.lots,
-            order=order
-        )
-        return trade
+            if best.bid_size >= order.lots:
+                price = best.bid
+        if price:
+            return Fill(
+                time=self.time,
+                price=price,
+                lots=order.lots,
+            )
 
-    def _exec_lmt_order(self, order: LmtOrder) -> Optional[StrategyTrade]:
-        raise NotImplementedError
+    def _exec_lmt_order(self, order: LmtOrder) -> Optional[Fill]:
+        best: BookL0 = self._get_book_best()
+        # pick the side according to the order type (Long vs Short)
+        price: Optional[float] = None
+        if order.action == "BUY":
+            if order.price >= best.ask and best.ask_size >= order.lots:
+                price = best.ask
+        else:
+            if order.price <= best.bid and best.bid_size >= order.lots:
+                price = best.bid
+        if price:
+            return Fill(
+                time=self.time,
+                price=price,
+                lots=order.lots,
+            )
