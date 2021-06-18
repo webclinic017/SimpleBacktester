@@ -4,7 +4,7 @@ import datetime
 import pathlib
 import queue
 import pandas as pd
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 import ib_insync as ibi
 
 from simplebt.book import BookL0
@@ -109,7 +109,7 @@ class Backtester:
                 if _t:
                     _tickers.append(_t)
             # returning a set just to simulate IBKR's behavior
-            return PendingTickerSetEvent(time=self.time, events=set(_tickers))
+            return PendingTickerSetEvent(time=self.time, events=_tickers)
 
         fill_events: List[FillEvent] = _get_mkts_fills()
         pending_ticker_events: PendingTickerSetEvent = _get_pending_tickers()
@@ -148,7 +148,7 @@ class Backtester:
 
     def _forward_event_to_strategy(self, event: Event):
         if isinstance(event, PendingTickerSetEvent):
-            self.strat.on_pending_tickers(event.events)
+            self.strat.on_pending_tickers(pending_tickers_event=event)
         elif isinstance(event, OrderReceivedEvent) or isinstance(event, OrderCanceledEvent):
             self.strat.on_new_order_event(event)
         elif isinstance(event, FillEvent):
@@ -176,8 +176,9 @@ class Backtester:
         logger.info("Hey jerk! We're done backtesting. You happy with the results?")
         if save_path:
             trades: List[StrategyTrade] = self.strat.get_trades()
-            df = pd.DataFrame(
-                [(t.time, t.fills, t.order) for t in trades],
-                columns=["time", "fills", "order"]
-            )
-            df.to_csv(save_path)
+            if trades:
+                df = pd.DataFrame(
+                    [(t.time, t.fills, t.order) for t in trades],
+                    columns=["time", "fills", "order"]
+                )
+                df.to_csv(save_path)

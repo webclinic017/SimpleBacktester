@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 import datetime
-from typing import List, Set, Union
+from typing import List, Union
 
 from simplebt.events.orders import OrderReceivedEvent, OrderCanceledEvent
 from simplebt.trade import StrategyTrade, Fill
-from simplebt.events.batches import PendingTickerEvent
+from simplebt.events.batches import PendingTickerSetEvent
 from simplebt.orders import Order
 from simplebt.position import PnLSingle
 
@@ -20,7 +19,7 @@ class StrategyInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def on_pending_tickers(self, tickers: Set[PendingTickerEvent]):
+    def on_pending_tickers(self, pending_tickers_event: PendingTickerSetEvent):
         """
         Series of actions to be done when the first level of a book changes
         or there is a new trade in the market
