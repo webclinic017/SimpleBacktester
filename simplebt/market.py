@@ -30,8 +30,8 @@ class Market:
         self._is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(self.time))
         self._best: BookL0 = BookL0(time=start_time, bid=-1, ask=-1, bid_size=0, ask_size=0)
 
-        self._trades_loader = TradesTicksLoader(contract, chunksize=chunksize, data_dir=data_dir)
-        self._bidask_loader = BidAskTicksLoader(contract, chunksize=chunksize, data_dir=data_dir)
+        self._trades_loader = TradesTicksLoader(contract)
+        self._bidask_loader = BidAskTicksLoader(contract)
 
         self._trades_with_pending_orders: List[StrategyTrade] = []
 

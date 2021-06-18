@@ -64,7 +64,7 @@ class BidAskTicksLoader(TicksLoader):
 
 
 class TradesTicksLoader(TicksLoader):
-    def __init__(self, contract: Contract, chunksize: int, data_dir: pathlib.Path = DATA_DIR):
+    def __init__(self, contract: Contract):
         super().__init__(
             contract=contract,
             tick_type="TRADES",
