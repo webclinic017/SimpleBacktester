@@ -161,7 +161,7 @@ class Backtester:
     def run(self, save_path: pathlib.Path = None):
         self.strat.bt = self
         while self.time <= self.end_time:
-            logger.info(f"Next timestamp: {self.time}")
+            logger.debug(f"Next timestamp: {self.time}")
 
             self._set_mkts_time(time=self.time)
             mkt_events: queue.Queue = self._get_events_from_mkts()
