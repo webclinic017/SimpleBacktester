@@ -19,8 +19,6 @@ class Market:
         self,
         start_time: datetime.datetime,
         contract: ibi.Contract,
-        data_dir: pathlib.Path,
-        chunksize: int
     ):
         self.time: datetime.datetime = start_time
         self.contract = contract

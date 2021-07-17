@@ -32,8 +32,6 @@ class Backtester:
         start_time: datetime.datetime,
         end_time: datetime.datetime,
         time_step: datetime.timedelta,
-        data_dir: pathlib.Path,
-        chunksize: int = None,
         # shuffle_events: bool = None,
     ):
         if start_time.tzinfo != datetime.timezone.utc:
@@ -44,12 +42,9 @@ class Backtester:
         self.end_time = end_time
         self.time_step = time_step
        
-        if not chunksize:
-            logger.info("Setting chunksize to 1 million rows")
-            chunksize = int(1e6)
         self.strat = strat
         self.mkts: Dict[int, Market] = {
-            c.conId: Market(contract=c, start_time=start_time, data_dir=data_dir, chunksize=chunksize)
+            c.conId: Market(contract=c, start_time=start_time)
             for c in contracts
         }
         self._positions: List[Position] = [Position(c) for c in contracts]
