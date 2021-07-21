@@ -2,8 +2,8 @@ import itertools
 import logging
 import datetime
 import pathlib
+import pickle
 import queue
-import pandas as pd
 from typing import Dict, List, Optional
 import ib_insync as ibi
 
@@ -51,6 +51,8 @@ class Backtester:
 
         self._events: "queue.Queue[Event]" = queue.Queue()
         # self.shuffle_events: bool = shuffle_events or False
+
+        self._bt_history_of_events: List[Event] = []
 
     # @property
     def positions(self) -> List[Position]:
@@ -143,8 +145,10 @@ class Backtester:
         if isinstance(event, PendingTickerSetEvent):
             self.strat.on_pending_tickers(pending_tickers_event=event)
         elif isinstance(event, OrderReceivedEvent) or isinstance(event, OrderCanceledEvent):
+            self._bt_history_of_events.append(event)
             self.strat.on_new_order_event(event)
         elif isinstance(event, FillEvent):
+            self._bt_history_of_events.append(event)
             self.strat.on_fill(trade=event.trade, fill=event.fill)
         elif isinstance(event, PnLSingleEvent):
             self.strat.on_pnl(pnl=event.pnl)
@@ -162,12 +166,8 @@ class Backtester:
                 e = self._events.get_nowait()
                 self._forward_event_to_strategy(event=e)
             self.time += self.time_step
+
         logger.info("Hey jerk! We're done backtesting. You happy with the results?")
-        if save_path:
-            trades: List[StrategyTrade] = self.strat.get_trades()
-            if trades:
-                df = pd.DataFrame(
-                    [(t.time, t.fills, t.order) for t in trades],
-                    columns=["time", "fills", "order"]
-                )
-                df.to_csv(save_path)
+        if save_path and self._bt_history_of_events:
+            with open(save_path, "wb") as f:
+                pickle.dump(self._bt_history_of_events, f)

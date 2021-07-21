@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
 import datetime
-from typing import List, Union
+from typing import Union
 
 from simplebt.events.orders import OrderReceivedEvent, OrderCanceledEvent
 from simplebt.trade import StrategyTrade, Fill
 from simplebt.events.batches import PendingTickerSetEvent
-from simplebt.orders import Order
 from simplebt.position import PnLSingle
 
 
@@ -47,9 +46,4 @@ class StrategyInterface(ABC):
 
     @abstractmethod
     def on_pnl(self, pnl: PnLSingle):
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_trades(self) -> List[StrategyTrade]:
-        """Return trades"""
         raise NotImplementedError
