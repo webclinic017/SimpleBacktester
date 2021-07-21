@@ -77,9 +77,9 @@ class Backtester:
 
     def _update_positions(self, fill_events: List[FillEvent]):
         def update_single_position(position: Position):
-            if position.contract in map(lambda e: e.trade.order.contract, fill_events):
-                for event in filter(lambda x: x.order.contract == position.contract, fill_events):
-                    position.update(fill=event.trade)
+            # if position.contract in map(lambda e: e.trade.order.contract, fill_events):
+            for event in filter(lambda x: x.trade.order.contract == position.contract, fill_events):
+                position.update(fill=event.fill)
             return position
 
         self._positions = list(map(lambda p: update_single_position(p), self._positions))
@@ -88,7 +88,7 @@ class Backtester:
         for mkt in self.mkts.values():
             mkt.set_time(time=time)
 
-    def _get_events_from_mkts(self) -> "queue.Queue[Event]":
+    def _add_new_mkt_events_to_queue(self):
         def _get_mkts_fills() -> List[FillEvent]:
             fills: List[FillEvent] = []
             for mkt in self.mkts.values():
@@ -110,15 +110,13 @@ class Backtester:
         pending_ticker_events: PendingTickerSetEvent = _get_pending_tickers()
         pnl_events: List[PnLSingleEvent] = list(itertools.chain(*(self._get_pnl_events(ticker=t) for t in pending_ticker_events.events)))
 
-        q: "queue.Queue[Event]" = queue.Queue()
         # NOTE: The order I insert events in the queue is debatable
         for e in fill_events:
-            q.put(e)
+            self._events.put(e)
         for e in pnl_events:
-            q.put(e)
+            self._events.put(e)
         if pending_ticker_events:
-            q.put(pending_ticker_events)  # IBKR pass these in batches
-        return q
+            self._events.put(pending_ticker_events)  # IBKR pass these in batches
 
     def _get_pnl_events(self, ticker: PendingTickerEvent) -> List[PnLSingleEvent]:
         """
@@ -157,17 +155,13 @@ class Backtester:
         self.strat.bt = self
         while self.time <= self.end_time:
             logger.debug(f"Next timestamp: {self.time}")
-
             self._set_mkts_time(time=self.time)
-            mkt_events: queue.Queue = self._get_events_from_mkts()
-
+            self._add_new_mkt_events_to_queue()
             self.strat.set_time(time=self.time)
-            while not mkt_events.empty():
-                e = mkt_events.get_nowait()
-                self._forward_event_to_strategy(e)
-
+            while not self._events.empty():
+                e = self._events.get_nowait()
+                self._forward_event_to_strategy(event=e)
             self.time += self.time_step
-
         logger.info("Hey jerk! We're done backtesting. You happy with the results?")
         if save_path:
             trades: List[StrategyTrade] = self.strat.get_trades()
