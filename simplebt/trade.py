@@ -1,7 +1,7 @@
 import datetime
 from typing import List
 from dataclasses import dataclass
-from simplebt.orders import Order
+from simplebt.orders import Order, OrderAction
 
 
 @dataclass(frozen=True)
@@ -9,6 +9,7 @@ class Fill:
     time: datetime.datetime
     price: float
     lots: int
+    order_action: OrderAction
 
 
 class StrategyTrade:

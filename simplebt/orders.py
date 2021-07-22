@@ -1,8 +1,14 @@
 import abc
 import datetime
 import ib_insync as ibi
+from enum import Enum
 from typing import ClassVar, Set
 from dataclasses import dataclass
+
+
+class OrderAction(Enum):
+    BUY = 1
+    SELL = -1
 
 
 @dataclass
@@ -27,13 +33,13 @@ class Order(abc.ABC):
     def __init__(
         self,
         contract: ibi.Contract,
-        action: str,
+        action: OrderAction,
         lots: int,
         time: datetime.datetime,
     ):
         if lots <= 0:
             raise ValueError(f"Lots must be positive. Got {lots}")
-        if action not in ("BUY", "SELL"):
+        if action not in (OrderAction.BUY, OrderAction.SELL):
             raise ValueError("Action must be either BUY or SELL")
         self._contract = contract
         self._lots = lots
@@ -52,7 +58,7 @@ class Order(abc.ABC):
         return self._lots
 
     @property
-    def action(self) -> str:
+    def action(self) -> OrderAction:
         return self._action
 
     @property
@@ -77,7 +83,7 @@ class MktOrder(Order):
     def __init__(
             self,
             contract: ibi.Contract,
-            action: str,
+            action: OrderAction,
             lots: int,
             time: datetime.datetime,
     ):
@@ -88,7 +94,7 @@ class LmtOrder(Order):
     def __init__(
             self,
             contract: ibi.Contract,
-            action: str,
+            action: OrderAction,
             lots: int,
             price: float,
             time: datetime.datetime,

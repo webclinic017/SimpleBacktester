@@ -124,21 +124,19 @@ class Backtester:
         """
         If there are change best, the method calculates a pnl and spits an event
         """
-        def _calc_pnl() -> List[PnLSingle]:
-            pnls: List[PnLSingle] = []
-            position: Position = next(filter(lambda p: p.contract == ticker.contract, self.positions()))
-            if position.position != 0:
-                change_bests = list(filter(lambda e: isinstance(e, ChangeBestEvent), ticker.events))
-                for change_best in change_bests:
-                    bid, ask = change_best.best.bid, change_best.best.ask
-                    if position.position > 0:
-                        delta = bid - position.avg_cost
-                    else:
-                        delta = position.avg_cost - ask
-                    pnl = delta * position.position
-                    pnls.append(PnLSingle(conId=ticker.contract.conId, unrealizedPnL=pnl))
-            return pnls
-        pnl_events = [PnLSingleEvent(time=self.time, pnl=pnl) for pnl in _calc_pnl()]
+        pnls: List[PnLSingle] = []
+        position: Position = next(filter(lambda p: p.contract == ticker.contract, self.positions()))
+        if position.position != 0:
+            change_bests = filter(lambda e: isinstance(e, ChangeBestEvent), ticker.events)
+            unique_bests = set(map(lambda x: (x.best.bid, x.best.ask), change_bests))
+            for bid, ask in unique_bests:
+                if position.position > 0:
+                    delta = bid - position.avg_cost
+                else:
+                    delta = position.avg_cost - ask
+                pnl = delta * position.position
+                pnls.append(PnLSingle(conId=ticker.contract.conId, position=position.position, unrealizedPnL=pnl))
+        pnl_events = list(map(lambda pnl_: PnLSingleEvent(time=self.time, pnl=pnl_), pnls))
         return pnl_events
 
     def _forward_event_to_strategy(self, event: Event):

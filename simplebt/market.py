@@ -10,7 +10,7 @@ from simplebt.events.market import MktOpenEvent, MktCloseEvent, MktTradeEvent, C
 from simplebt.historical_data.load.ticks import BidAskTicksLoader, TradesTicksLoader
 from simplebt.events.batches import ChangeBestBatchEvent, MktTradeBatchEvent, PendingTickerEvent
 from simplebt.book import BookL0
-from simplebt.orders import Order, LmtOrder, MktOrder
+from simplebt.orders import Order, LmtOrder, MktOrder, OrderAction
 from simplebt.trade import StrategyTrade, Fill
 
 
@@ -143,34 +143,44 @@ class Market:
     def _exec_mkt_order(self, order: MktOrder) -> Optional[Fill]:
         best: BookL0 = self._get_book_best()
         price: Optional[float] = None
+        filled_lots: Optional[int] = None
         # pick the side according to the order type (Long vs Short)
-        if order.lots > 0:
-            # Don't have book depth, approximate
-            if best.ask_size >= order.lots:
-                price = best.ask
+        if order.action == OrderAction.BUY:
+            # Don't have book depth. Only playing with best here
+            price = best.ask
+            filled_lots = min(order.lots, best.ask_size)
+        elif order.action == OrderAction.SELL:
+            price = best.bid
+            filled_lots = min(order.lots, best.bid_size)
         else:
-            if best.bid_size >= order.lots:
-                price = best.bid
-        if price:
+            raise ValueError("Unknown order Action")
+        if price and filled_lots:
             return Fill(
                 time=self.time,
                 price=price,
-                lots=order.lots,
+                lots=filled_lots,
+                order_action=order.action
             )
 
     def _exec_lmt_order(self, order: LmtOrder) -> Optional[Fill]:
         best: BookL0 = self._get_book_best()
         # pick the side according to the order type (Long vs Short)
         price: Optional[float] = None
-        if order.action == "BUY":
-            if order.price >= best.ask and best.ask_size >= order.lots:
+        filled_lots: Optional[int] = None
+        if order.action == OrderAction.BUY:
+            if order.price >= best.ask:
                 price = best.ask
-        else:
-            if order.price <= best.bid and best.bid_size >= order.lots:
+                filled_lots = min(order.lots, best.ask_size)
+        elif order.action == OrderAction.SELL:
+            if order.price <= best.bid:
                 price = best.bid
-        if price:
+                filled_lots = min(order.lots, best.bid_size)
+        else:
+            raise ValueError("Unknown order Action")
+        if price and filled_lots:
             return Fill(
                 time=self.time,
                 price=price,
-                lots=order.lots,
+                lots=filled_lots,
+                order_action=order.action
             )

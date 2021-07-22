@@ -2,6 +2,8 @@ import ib_insync as ibi
 import numpy as np
 from dataclasses import dataclass
 from typing import List
+
+from simplebt.orders import OrderAction
 from simplebt.trade import Fill
 
 
@@ -26,11 +28,23 @@ class Position:
 
     def update(self, fill: Fill):
         self._entries.append(fill)
-        new_position = sum(map(lambda x: x.lots, self._entries))
-        avg_cost = sum(map(lambda x: abs(x.lots) * x.price, self._entries)) / sum(map(lambda x: abs(x.lots), self._entries))
-        self._avg_cost = avg_cost
-        self._position = new_position
+        new_position = sum(map(lambda x: x.lots * self._order_action_to_side(x.order_action), self._entries))
+        if new_position == 0:
+            self._position = 0
+            self._avg_cost = 0
+            self._entries = []
+        else:
+            avg_cost = sum(map(lambda x: x.lots * x.price, self._entries)) / sum(map(lambda x: abs(x.lots), self._entries))
+            self._avg_cost = avg_cost
+            self._position = new_position
 
+    def _order_action_to_side(order_action: OrderAction) -> int:
+        if order_action == OrderAction.BUY:
+            return 1
+        elif order_action == OrderAction.SELL:
+            return -1
+        else:
+            raise ValueError("Unknown OrderAction")
 
 @dataclass
 class PnLSingle:

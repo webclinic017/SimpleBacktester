@@ -6,7 +6,7 @@ from dataclasses import dataclass
 class BookL0:
     bid: float
     ask: float
-    bid_size: float
-    ask_size: float
+    bid_size: int
+    ask_size: int
     time: datetime.datetime
 
