@@ -38,6 +38,7 @@ class Position:
             self._avg_cost = avg_cost
             self._position = new_position
 
+    @staticmethod
     def _order_action_to_side(order_action: OrderAction) -> int:
         if order_action == OrderAction.BUY:
             return 1
