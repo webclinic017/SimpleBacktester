@@ -13,8 +13,14 @@ class StrategyInterface(ABC):
     This class defines the architecture of the Strategy.
     This class will have a concrete form for every different Strategy we want to write.
     """
-    @abstractmethod
-    def set_time(self, time: datetime.datetime):
+    _time: datetime.datetime
+
+    @property
+    def time(self) -> datetime.datetime:
+        return self._time
+
+    @time.setter
+    def time(self, time: datetime.datetime):
         raise NotImplementedError
 
     @abstractmethod
@@ -24,14 +30,6 @@ class StrategyInterface(ABC):
         or there is a new trade in the market
         """
         raise NotImplementedError
-
-    # @abstractmethod
-    # def on_change_best(self, event: ChangeBestBatch):
-    #     raise NotImplementedError
-
-    # @abstractmethod
-    # def on_market_trade(self, event: MktTradeBatch):
-    #     raise NotImplementedError
 
     @abstractmethod
     def on_new_order_event(self, order: Union[OrderReceivedEvent, OrderCanceledEvent]):
