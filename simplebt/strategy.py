@@ -21,7 +21,7 @@ class StrategyInterface(ABC):
 
     @time.setter
     def time(self, time: datetime.datetime):
-        raise NotImplementedError
+        self._time = time
 
     @abstractmethod
     def on_pending_tickers(self, pending_tickers_event: PendingTickerSetEvent):
