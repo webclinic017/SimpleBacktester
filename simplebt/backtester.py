@@ -158,7 +158,7 @@ class Backtester:
             logger.debug(f"Next timestamp: {self.time}")
             self._set_mkts_time(time=self.time)
             self._add_new_mkt_events_to_queue()
-            self.strat.time(time=self.time)
+            self.strat.time = self.time
             while not self._events.empty():
                 e = self._events.get_nowait()
                 self._forward_event_to_strategy(event=e)
