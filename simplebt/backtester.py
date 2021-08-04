@@ -2,9 +2,9 @@ import itertools
 import logging
 import datetime
 import pathlib
+import pickle
 import queue
-import pandas as pd
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 import ib_insync as ibi
 
 from simplebt.book import BookL0
@@ -32,8 +32,6 @@ class Backtester:
         start_time: datetime.datetime,
         end_time: datetime.datetime,
         time_step: datetime.timedelta,
-        data_dir: pathlib.Path,
-        chunksize: int = None,
         # shuffle_events: bool = None,
     ):
         if start_time.tzinfo != datetime.timezone.utc:
@@ -44,18 +42,17 @@ class Backtester:
         self.end_time = end_time
         self.time_step = time_step
        
-        if not chunksize:
-            logger.info("Setting chunksize to 1 million rows")
-            chunksize = int(1e6)
         self.strat = strat
         self.mkts: Dict[int, Market] = {
-            c.conId: Market(contract=c, start_time=start_time, data_dir=data_dir, chunksize=chunksize)
+            c.conId: Market(contract=c, start_time=start_time)
             for c in contracts
         }
         self._positions: List[Position] = [Position(c) for c in contracts]
 
         self._events: "queue.Queue[Event]" = queue.Queue()
         # self.shuffle_events: bool = shuffle_events or False
+
+        self._bt_history_of_events: List[Event] = []
 
     # @property
     def positions(self) -> List[Position]:
@@ -82,9 +79,9 @@ class Backtester:
 
     def _update_positions(self, fill_events: List[FillEvent]):
         def update_single_position(position: Position):
-            if position.contract in map(lambda e: e.trade.order.contract, fill_events):
-                for event in filter(lambda x: x.order.contract == position.contract, fill_events):
-                    position.update(fill=event.trade)
+            # if position.contract in map(lambda e: e.trade.order.contract, fill_events):
+            for event in filter(lambda x: x.trade.order.contract == position.contract, fill_events):
+                position.update(fill=event.fill)
             return position
 
         self._positions = list(map(lambda p: update_single_position(p), self._positions))
@@ -93,65 +90,62 @@ class Backtester:
         for mkt in self.mkts.values():
             mkt.set_time(time=time)
 
-    def _get_events_from_mkts(self) -> "queue.Queue[Event]":
-        def _get_mkts_fills() -> List[FillEvent]:
-            fills: List[FillEvent] = []
-            for mkt in self.mkts.values():
-                fills += mkt.get_fills()
-            fills = list(sorted(fills, key=lambda f: f.time, reverse=False))
-            self._update_positions(fills)
-            return fills
+    def _add_new_mkt_events_to_queue(self):
+        fill_events: List[FillEvent] = self._get_mkts_fill_events()
+        pending_ticker_events: PendingTickerSetEvent = self._get_pending_ticker_events()
+        pnl_events: List[PnLSingleEvent] = list(itertools.chain(*(self._get_pnl_events(pending_ticker_event=t) for t in pending_ticker_events.events)))
 
-        def _get_pending_tickers() -> PendingTickerSetEvent:
-            _tickers: List[PendingTickerEvent] = []
-            for mkt in self.mkts.values():
-                _t: Optional[PendingTickerEvent] = mkt.get_pending_ticker()
-                if _t:
-                    _tickers.append(_t)
-            # returning a set just to simulate IBKR's behavior
-            return PendingTickerSetEvent(time=self.time, events=set(_tickers))
-
-        fill_events: List[FillEvent] = _get_mkts_fills()
-        pending_ticker_events: PendingTickerSetEvent = _get_pending_tickers()
-        pnl_events: List[PnLSingleEvent] = list(itertools.chain(*(self._get_pnl_events(ticker=t) for t in pending_ticker_events.events)))
-
-        q: "queue.Queue[Event]" = queue.Queue()
-        # NOTE: The order I insert events in the queue is debatable
         for e in fill_events:
-            q.put(e)
+            self._events.put(e)
         for e in pnl_events:
-            q.put(e)
+            self._events.put(e)
         if pending_ticker_events:
-            q.put(pending_ticker_events)  # IBKR pass these in batches
-        return q
+            self._events.put(pending_ticker_events)  # IBKR pass these in batches
 
-    def _get_pnl_events(self, ticker: PendingTickerEvent) -> List[PnLSingleEvent]:
+    def _get_mkts_fill_events(self) -> List[FillEvent]:
+        fills: List[FillEvent] = []
+        for mkt in self.mkts.values():
+            fills += mkt.get_fill_events()
+        fills = list(sorted(fills, key=lambda f: f.time, reverse=False))
+        self._update_positions(fills)
+        return fills
+
+    def _get_pending_ticker_events(self) -> PendingTickerSetEvent:
+        _tickers: List[PendingTickerEvent] = []
+        for mkt in self.mkts.values():
+            _t: Optional[PendingTickerEvent] = mkt.get_pending_ticker_events()
+            if _t:
+                _tickers.append(_t)
+        # returning a set just to simulate IBKR's behavior
+        return PendingTickerSetEvent(time=self.time, events=_tickers)
+
+    def _get_pnl_events(self, pending_ticker_event: PendingTickerEvent) -> List[PnLSingleEvent]:
         """
         If there are change best, the method calculates a pnl and spits an event
         """
-        def _calc_pnl() -> List[PnLSingle]:
-            pnls: List[PnLSingle] = []
-            position: Position = next(filter(lambda p: p.contract == ticker.contract, self.positions()))
-            if position.position != 0:
-                change_bests = list(filter(lambda e: isinstance(e, ChangeBestEvent), ticker.events))
-                for change_best in change_bests:
-                    bid, ask = change_best.best.bid, change_best.best.ask
-                    if position.position > 0:
-                        delta = bid - position.avg_cost
-                    else:
-                        delta = position.avg_cost - ask
-                    pnl = delta * position.position
-                    pnls.append(PnLSingle(conId=ticker.contract.conId, unrealizedPnL=pnl))
-            return pnls
-        pnl_events = [PnLSingleEvent(time=self.time, pnl=pnl) for pnl in _calc_pnl()]
+        pnls: List[PnLSingle] = []
+        position: Position = next(filter(lambda p: p.contract == pending_ticker_event.contract, self.positions()))
+        if position.position != 0:
+            change_bests = filter(lambda e: isinstance(e, ChangeBestEvent), pending_ticker_event.events)
+            unique_bests = set(map(lambda x: (x.best.bid, x.best.ask), change_bests))
+            for bid, ask in unique_bests:
+                if position.position > 0:
+                    delta = bid - position.avg_cost
+                else:
+                    delta = position.avg_cost - ask
+                pnl = delta * position.position
+                pnls.append(PnLSingle(conId=pending_ticker_event.contract.conId, position=position.position, unrealizedPnL=pnl))
+        pnl_events = list(map(lambda pnl_: PnLSingleEvent(time=self.time, pnl=pnl_), pnls))
         return pnl_events
 
     def _forward_event_to_strategy(self, event: Event):
         if isinstance(event, PendingTickerSetEvent):
-            self.strat.on_pending_tickers(event.events)
+            self.strat.on_pending_tickers(pending_tickers_event=event)
         elif isinstance(event, OrderReceivedEvent) or isinstance(event, OrderCanceledEvent):
+            self._bt_history_of_events.append(event)
             self.strat.on_new_order_event(event)
         elif isinstance(event, FillEvent):
+            self._bt_history_of_events.append(event)
             self.strat.on_fill(trade=event.trade, fill=event.fill)
         elif isinstance(event, PnLSingleEvent):
             self.strat.on_pnl(pnl=event.pnl)
@@ -161,23 +155,17 @@ class Backtester:
     def run(self, save_path: pathlib.Path = None):
         self.strat.bt = self
         while self.time <= self.end_time:
-            logger.info(f"Next timestamp: {self.time}")
-
+            logger.debug(f"Next timestamp: {self.time}")
             self._set_mkts_time(time=self.time)
-            mkt_events: queue.Queue = self._get_events_from_mkts()
-
-            self.strat.set_time(time=self.time)
-            while not mkt_events.empty():
-                e = mkt_events.get_nowait()
-                self._forward_event_to_strategy(e)
-
+            self._add_new_mkt_events_to_queue()
+            self.strat.time = self.time
+            while not self._events.empty():
+                e = self._events.get_nowait()
+                self._forward_event_to_strategy(event=e)
             self.time += self.time_step
 
         logger.info("Hey jerk! We're done backtesting. You happy with the results?")
-        if save_path:
-            trades: List[StrategyTrade] = self.strat.get_trades()
-            df = pd.DataFrame(
-                [(t.time, t.fills, t.order) for t in trades],
-                columns=["time", "fills", "order"]
-            )
-            df.to_csv(save_path)
+        if save_path and self._bt_history_of_events:
+            with open(save_path, "wb") as f:
+                to_save = {"strategy": self.strat, "events": self._bt_history_of_events}
+                pickle.dump(to_save, f)

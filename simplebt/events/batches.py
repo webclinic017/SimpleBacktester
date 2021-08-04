@@ -1,6 +1,6 @@
 import ib_insync as ibi
 from dataclasses import dataclass
-from typing import List, Union, Set
+from typing import List, Union
 
 from simplebt.events.market import ChangeBestEvent, MktTradeEvent
 from simplebt.events.generic import Event
@@ -26,4 +26,4 @@ class PendingTickerEvent(Event):
 
 @dataclass(frozen=True)
 class PendingTickerSetEvent(Event):
-    events: Set[PendingTickerEvent]
+    events: List[PendingTickerEvent]

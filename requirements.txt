@@ -1,6 +1,0 @@
-ib-insync==0.9.64
-matplotlib==3.3.3
-numpy==1.19.4
-pandas==1.2.0
-psycopg2-binary==2.8.6
-git+ssh://git@github.com/gipaetusb/trading_calendars#egg=trading_calendars
