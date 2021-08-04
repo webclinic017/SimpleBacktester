@@ -167,4 +167,5 @@ class Backtester:
         logger.info("Hey jerk! We're done backtesting. You happy with the results?")
         if save_path and self._bt_history_of_events:
             with open(save_path, "wb") as f:
-                pickle.dump(self._bt_history_of_events, f)
+                to_save = {"strategy": self.strat, "events": self._bt_history_of_event}
+                pickle.dump(to_save, f)
