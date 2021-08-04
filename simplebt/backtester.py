@@ -2,7 +2,6 @@ import itertools
 import logging
 import datetime
 import pathlib
-import pickle
 import queue
 from typing import Dict, List, Optional
 import ib_insync as ibi
@@ -152,7 +151,7 @@ class Backtester:
         else:
             raise ValueError(f"Got unexpected event: {event}")
 
-    def run(self, save_path: pathlib.Path = None):
+    def run(self, save_path: pathlib.Path = None) -> List[Event]:
         self.strat.bt = self
         while self.time <= self.end_time:
             logger.debug(f"Next timestamp: {self.time}")
@@ -165,7 +164,4 @@ class Backtester:
             self.time += self.time_step
 
         logger.info("Hey jerk! We're done backtesting. You happy with the results?")
-        if save_path and self._bt_history_of_events:
-            with open(save_path, "wb") as f:
-                to_save = {"strategy": None, "events": self._bt_history_of_events}
-                pickle.dump(to_save, f)
+        return self._bt_history_of_events
