@@ -13,7 +13,7 @@ from simplebt.events.generic import Event
 from simplebt.events.orders import OrderReceivedEvent, OrderCanceledEvent
 from simplebt.events.position import PnLSingleEvent
 from simplebt.market import Market
-from simplebt.events.market import ChangeBestEvent, FillEvent, MktCloseEvent, MktOpenEvent
+from simplebt.events.market import ChangeBestEvent, FillEvent
 from simplebt.orders import Order
 from simplebt.position import Position, PnLSingle
 from simplebt.strategy import StrategyInterface
@@ -167,5 +167,5 @@ class Backtester:
         logger.info("Hey jerk! We're done backtesting. You happy with the results?")
         if save_path and self._bt_history_of_events:
             with open(save_path, "wb") as f:
-                to_save = {"strategy": self.strat, "events": self._bt_history_of_event}
+                to_save = {"strategy": self.strat, "events": self._bt_history_of_events}
                 pickle.dump(to_save, f)
