@@ -47,6 +47,7 @@ class Position:
         else:
             raise ValueError("Unknown OrderAction")
 
+
 @dataclass
 class PnLSingle:
     conId: int = 0
