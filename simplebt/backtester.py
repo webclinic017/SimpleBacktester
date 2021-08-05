@@ -60,9 +60,6 @@ class Backtester:
     def get_best(self, contract: ibi.Contract) -> BookL0:
         return self.mkts[contract.conId].get_book_best()
 
-    def schedule(self, *args, **kwargs):
-        pass
-
     def place_order(self, order: Order) -> StrategyTrade:
         mkt: Market = self.mkts[order.contract.conId]
         trade: StrategyTrade = mkt.add_order(order=order)

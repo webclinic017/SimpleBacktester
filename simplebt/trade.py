@@ -14,7 +14,7 @@ class Fill:
 
 class StrategyTrade:
     def __init__(self, order: Order):
-        self._time = datetime.datetime.now()
+        self._time = order.time
         self._fills: List[Fill] = []
         self._order: Order = order  # IBKR returns the order associated with the trade
         self._filled_lots: int = 0
