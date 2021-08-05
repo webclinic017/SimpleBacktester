@@ -13,6 +13,7 @@ class Position:
         self._position: int = 0
         self._avg_cost: float = 0
         self._entries: List[Fill] = []
+        # self._realized_pnl: float = 0
 
     @property
     def contract(self) -> ibi.Contract:
@@ -26,10 +27,15 @@ class Position:
     def avg_cost(self) -> float:
         return self._avg_cost
 
+    # @property
+    # def realized_pnl(self) -> float:
+    #     return self._realized_pnl
+
     def update(self, fill: Fill):
         self._entries.append(fill)
         new_position = sum(map(lambda x: x.lots * self._order_action_to_side(x.order_action), self._entries))
         if new_position == 0:
+            # self._realized_pnl += (fill.price - self._avg_cost) * self._order_action_to_side(fill.order_action)
             self._position = 0
             self._avg_cost = 0
             self._entries = []
@@ -40,6 +46,7 @@ class Position:
 
     @staticmethod
     def _order_action_to_side(order_action: OrderAction) -> int:
+        """I could use just order_action.value but you know...Sometimes explicit is better than implicit"""
         if order_action == OrderAction.BUY:
             return 1
         elif order_action == OrderAction.SELL:

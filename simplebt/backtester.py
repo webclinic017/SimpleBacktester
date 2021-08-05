@@ -119,7 +119,7 @@ class Backtester:
         """
         If there are change best, the method calculates a pnl and spits an event
         """
-        pnls: List[PnLSingle] = []
+        pnl_single_list: List[PnLSingle] = []
         position: Position = next(filter(lambda p: p.contract == pending_ticker_event.contract, self.positions()))
         if position.position != 0:
             change_bests = filter(lambda e: isinstance(e, ChangeBestEvent), pending_ticker_event.events)
@@ -129,9 +129,11 @@ class Backtester:
                     delta = bid - position.avg_cost
                 else:
                     delta = position.avg_cost - ask
-                pnl = delta * position.position
-                pnls.append(PnLSingle(conId=pending_ticker_event.contract.conId, position=position.position, unrealizedPnL=pnl))
-        pnl_events = list(map(lambda pnl_: PnLSingleEvent(time=self.time, pnl=pnl_), pnls))
+                unrealized_pnl: float = delta * position.position * int(position.contract.multiplier)
+                pnl_single_list.append(
+                    PnLSingle(conId=position.contract.conId, position=position.position, unrealizedPnL=unrealized_pnl)
+                )
+        pnl_events = list(map(lambda pnl_single: PnLSingleEvent(time=self.time, pnl=pnl_single), pnl_single_list))
         return pnl_events
 
     def _forward_event_to_strategy(self, event: Event):
