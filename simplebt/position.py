@@ -35,7 +35,7 @@ class Position:
         self._entries.append(fill)
         new_position = sum(map(lambda x: x.lots * self._order_action_to_side(x.order_action), self._entries))
         if new_position == 0:
-            # self._realized_pnl += (fill.price - self._avg_cost) * self._order_action_to_side(fill.order_action)
+            # self._realized_pnl += (fill.price - self._avg_cost) * self._order_action_to_side(fill.order_action) * int(self.fill.contract.multiplier)
             self._position = 0
             self._avg_cost = 0
             self._entries = []

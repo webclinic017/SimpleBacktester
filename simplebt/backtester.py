@@ -119,22 +119,26 @@ class Backtester:
         """
         If there are change best, the method calculates a pnl and spits an event
         """
-        pnl_single_list: List[PnLSingle] = []
+        pnl_events: List[PnLSingleEvent] = []
         position: Position = next(filter(lambda p: p.contract == pending_ticker_event.contract, self.positions()))
         if position.position != 0:
             change_bests = filter(lambda e: isinstance(e, ChangeBestEvent), pending_ticker_event.events)
             unique_bests = set(map(lambda x: (x.best.bid, x.best.ask), change_bests))
             for bid, ask in unique_bests:
-                if position.position > 0:
-                    delta = bid - position.avg_cost
-                else:
-                    delta = position.avg_cost - ask
-                unrealized_pnl: float = delta * position.position * int(position.contract.multiplier)
-                pnl_single_list.append(
-                    PnLSingle(conId=position.contract.conId, position=position.position, unrealizedPnL=unrealized_pnl)
-                )
-        pnl_events = list(map(lambda pnl_single: PnLSingleEvent(time=self.time, pnl=pnl_single), pnl_single_list))
+                pnl_single = self._calc_unrealized_pnl(bid=bid, ask=ask, position=position)
+                pnl_events.append(PnLSingleEvent(time=self.time, pnl=pnl_single))
         return pnl_events
+
+    @staticmethod
+    def _calc_unrealized_pnl(bid: float, ask: float, position: Position) -> PnLSingle:
+        if position.position > 0:
+            delta = bid - position.avg_cost
+        else:
+            delta = position.avg_cost - ask
+        unrealized_pnl: float = delta * position.position
+        if isinstance(position.contract, ibi.Future):
+            unrealized_pnl *= int(position.contract.multiplier)
+        return PnLSingle(conId=position.contract.conId, position=position.position, unrealizedPnL=unrealized_pnl)
 
     def _forward_event_to_strategy(self, event: Event):
         if isinstance(event, PendingTickerSetEvent):
