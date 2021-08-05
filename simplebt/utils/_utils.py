@@ -1,6 +1,6 @@
 import datetime
 import pandas as pd
-from typing import Optional, Callable
+from typing import Callable
 
 
 def to_utc(t: datetime.datetime) -> datetime.datetime:
