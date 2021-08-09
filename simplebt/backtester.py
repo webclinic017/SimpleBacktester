@@ -23,7 +23,6 @@ logger.setLevel(logging.INFO)
 class Backtester:
     def __init__(
         self,
-        strat: StrategyInterface,
         contracts: List[ibi.Contract],
         start_time: datetime.datetime,
         end_time: datetime.datetime,
@@ -38,7 +37,6 @@ class Backtester:
         self.end_time = end_time
         self.time_step = time_step
        
-        self.strat = strat
         self.mkts: Dict[int, Market] = {
             c.conId: Market(contract=c, start_time=start_time)
             for c in contracts
@@ -47,8 +45,12 @@ class Backtester:
 
         self._events: "queue.Queue[Event]" = queue.Queue()
         # self.shuffle_events: bool = shuffle_events or False
-
         self._bt_history_of_events: List[Event] = []
+
+        self.strat: StrategyInterface = None
+
+    def set_strat(self, strat: StrategyInterface):
+        self.strat = strat
 
     # @property
     def positions(self) -> List[Position]:
@@ -153,7 +155,8 @@ class Backtester:
             raise ValueError(f"Got unexpected event: {event}")
 
     def run(self) -> List[Event]:
-        self.strat.backtester = self
+        if not self.strat:
+            raise AttributeError("First set a strategy")
         while self.time <= self.end_time:
             logger.debug(f"Next timestamp: {self.time}")
             self._set_mkts_time(time=self.time)
