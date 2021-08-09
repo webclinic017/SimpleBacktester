@@ -1,3 +1,4 @@
+import collections
 import itertools
 import logging
 import datetime
@@ -122,9 +123,10 @@ class Backtester:
         pnl_events: List[PnLSingleEvent] = []
         position: Position = next(filter(lambda p: p.contract == ticker.contract, self.positions()))
         if position.position != 0:
-            change_bests = filter(lambda tick: isinstance(tick, TickByTickBidAsk), ticker.tickByTicks)
-            unique_bests = set(map(lambda x: (x.best.bid, x.best.ask), change_bests))
-            for bid, ask in unique_bests:
+            change_bests_ticks = filter(lambda tick: isinstance(tick, TickByTickBidAsk), ticker.tickByTicks)
+            change_bests_prices = ((i.bid, i.ask) for i in change_bests_ticks)
+            unique_change_bests_prices = collections.OrderedDict.fromkeys(change_bests_prices)
+            for bid, ask in unique_change_bests_prices:
                 pnl = self._calc_unrealized_pnl(bid=bid, ask=ask, position=position)
                 pnl_events.append(PnLSingleEvent(time=self.time, pnl=pnl))
         return pnl_events
