@@ -1,21 +1,18 @@
 import itertools
 import logging
 import datetime
-import pathlib
 import queue
 from typing import Dict, List, Optional
 import ib_insync as ibi
 
-from simplebt.book import BookL0
-from simplebt.events.batches import PendingTickerEvent, PendingTickerSetEvent
 from simplebt.events.generic import Event
 from simplebt.events.orders import OrderReceivedEvent, OrderCanceledEvent
-from simplebt.events.position import PnLSingleEvent
 from simplebt.market import Market
-from simplebt.events.market import ChangeBestEvent, FillEvent
+from simplebt.events.market import FillEvent, PnLSingleEvent, PendingTickersEvent
 from simplebt.orders import Order
 from simplebt.position import Position, PnLSingle
 from simplebt.strategy import StrategyInterface
+from simplebt.ticker import TickByTickBidAsk, Ticker
 from simplebt.trade import StrategyTrade
 
 
@@ -57,20 +54,20 @@ class Backtester:
     def positions(self) -> List[Position]:
         return self._positions
 
-    def get_best(self, contract: ibi.Contract) -> BookL0:
+    def get_best(self, contract: ibi.Contract) -> TickByTickBidAsk:
         return self.mkts[contract.conId].get_book_best()
 
     def place_order(self, order: Order) -> StrategyTrade:
         mkt: Market = self.mkts[order.contract.conId]
         trade: StrategyTrade = mkt.add_order(order=order)
-        self._events.put(OrderReceivedEvent(time=trade.time, order=trade.order))
+        self._events.put(OrderReceivedEvent(time=trade.time, trade=trade))
         return trade
 
     def cancel_order(self, order: Order) -> StrategyTrade:
         mkt: Market = self.mkts[order.contract.conId]
         # if random.randint(0, 10) > 1:  # some randomness here
         canceled_trade: StrategyTrade = mkt.cancel_order(order=order)
-        self._events.put(OrderCanceledEvent(time=canceled_trade.time, order=canceled_trade.order))
+        self._events.put(OrderCanceledEvent(time=canceled_trade.time, trade=canceled_trade))
         return canceled_trade
 
     def _update_positions(self, fill_events: List[FillEvent]):
@@ -88,15 +85,17 @@ class Backtester:
 
     def _add_new_mkt_events_to_queue(self):
         fill_events: List[FillEvent] = self._get_mkts_fill_events()
-        pending_ticker_events: PendingTickerSetEvent = self._get_pending_ticker_events()
-        pnl_events: List[PnLSingleEvent] = list(itertools.chain(*(self._get_pnl_events(pending_ticker_event=t) for t in pending_ticker_events.events)))
+        pending_tickers: PendingTickersEvent = self._get_pending_tickers_events()
+        pnls: List[PnLSingleEvent] = list(itertools.chain(
+            *(self._get_pnl_events(ticker=t) for t in pending_tickers.tickers))
+        )
 
         for e in fill_events:
             self._events.put(e)
-        for e in pnl_events:
+        for e in pnls:
             self._events.put(e)
-        if pending_ticker_events:
-            self._events.put(pending_ticker_events)  # IBKR pass these in batches
+        if pending_tickers:
+            self._events.put(pending_tickers)  # IBKR pass these in batches
 
     def _get_mkts_fill_events(self) -> List[FillEvent]:
         fills: List[FillEvent] = []
@@ -106,27 +105,26 @@ class Backtester:
         self._update_positions(fills)
         return fills
 
-    def _get_pending_ticker_events(self) -> PendingTickerSetEvent:
-        _tickers: List[PendingTickerEvent] = []
+    def _get_pending_tickers_events(self) -> PendingTickersEvent:
+        _tickers: List[Ticker] = []  # NOTE: IBKR actually returns a set
         for mkt in self.mkts.values():
-            _t: Optional[PendingTickerEvent] = mkt.get_pending_ticker_events()
+            _t: Optional[Ticker] = mkt.get_pending_ticker()
             if _t:
                 _tickers.append(_t)
-        # returning a set just to simulate IBKR's behavior
-        return PendingTickerSetEvent(time=self.time, events=_tickers)
+        return PendingTickersEvent(time=self.time, tickers=_tickers)
 
-    def _get_pnl_events(self, pending_ticker_event: PendingTickerEvent) -> List[PnLSingleEvent]:
+    def _get_pnl_events(self, ticker: Ticker) -> List[PnLSingleEvent]:
         """
         If there are change best, the method calculates a pnl and spits an event
         """
         pnl_events: List[PnLSingleEvent] = []
-        position: Position = next(filter(lambda p: p.contract == pending_ticker_event.contract, self.positions()))
+        position: Position = next(filter(lambda p: p.contract == ticker.contract, self.positions()))
         if position.position != 0:
-            change_bests = filter(lambda e: isinstance(e, ChangeBestEvent), pending_ticker_event.events)
+            change_bests = filter(lambda tick: isinstance(tick, TickByTickBidAsk), ticker.tickByTicks)
             unique_bests = set(map(lambda x: (x.best.bid, x.best.ask), change_bests))
             for bid, ask in unique_bests:
-                pnl_single = self._calc_unrealized_pnl(bid=bid, ask=ask, position=position)
-                pnl_events.append(PnLSingleEvent(time=self.time, pnl=pnl_single))
+                pnl = self._calc_unrealized_pnl(bid=bid, ask=ask, position=position)
+                pnl_events.append(PnLSingleEvent(time=self.time, pnl=pnl))
         return pnl_events
 
     @staticmethod
@@ -141,26 +139,26 @@ class Backtester:
         return PnLSingle(conId=position.contract.conId, position=position.position, unrealizedPnL=unrealized_pnl)
 
     def _forward_event_to_strategy(self, event: Event):
-        if isinstance(event, PendingTickerSetEvent):
-            self.strat.on_pending_tickers(pending_tickers_event=event)
+        if isinstance(event, PendingTickersEvent):
+            self.strat.on_pending_tickers_event(tickers=event.tickers)
         elif isinstance(event, OrderReceivedEvent) or isinstance(event, OrderCanceledEvent):
             self._bt_history_of_events.append(event)
-            self.strat.on_new_order_event(event)
+            self.strat.on_new_order_event(trade=event.trade)
         elif isinstance(event, FillEvent):
             self._bt_history_of_events.append(event)
-            self.strat.on_fill(trade=event.trade, fill=event.fill)
+            self.strat.on_exec_details_event(trade=event.trade, fill=event.fill)
         elif isinstance(event, PnLSingleEvent):
-            self.strat.on_pnl(pnl=event.pnl)
+            self.strat.on_pnl_single_event(pnl=event.pnl)
         else:
             raise ValueError(f"Got unexpected event: {event}")
 
-    def run(self, save_path: pathlib.Path = None) -> List[Event]:
-        self.strat.bt = self
+    def run(self) -> List[Event]:
+        self.strat.backtester = self
         while self.time <= self.end_time:
             logger.debug(f"Next timestamp: {self.time}")
             self._set_mkts_time(time=self.time)
             self._add_new_mkt_events_to_queue()
-            self.strat.time = self.time
+            self.strat.set_time(self.time)
             while not self._events.empty():
                 e = self._events.get_nowait()
                 self._forward_event_to_strategy(event=e)

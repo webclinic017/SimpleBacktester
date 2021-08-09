@@ -1,0 +1,4 @@
+ib-insync==0.9.66
+numpy==1.19.4
+pandas==1.2.0
+psycopg2-binary==2.8.6

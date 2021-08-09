@@ -4,10 +4,7 @@ import logging
 from typing import List
 from ib_insync import Contract
 from simplebt.db import DbTicks
-from simplebt.events.market import ChangeBestEvent, MktTradeEvent
-from simplebt.events.batches import ChangeBestBatchEvent, MktTradeBatchEvent
-from simplebt.book import BookL0
-
+from simplebt.ticker import TickByTickAllLast, TickByTickBidAsk
 
 logger = logging.getLogger("TicksLoader")
 
@@ -52,14 +49,13 @@ class BidAskTicksLoader(TicksLoader):
             date_col="time",
         )
 
-    def get_ticks_batch_by_time(self, time: datetime.datetime) -> ChangeBestBatchEvent:
-        ticks = self._get_ticks_by_time(time=time)
-        event_list: List[ChangeBestEvent] = []
-        for db_time, bid, ask, bid_size, ask_size, _, _, _ in ticks:
-            l0 = BookL0(bid=bid, ask=ask, bid_size=bid_size, ask_size=ask_size, time=time)
-            event = ChangeBestEvent(best=l0, time=time)
-            event_list.append(event)
-        return ChangeBestBatchEvent(events=event_list, time=time)
+    def get_ticks_batch_by_time(self, time: datetime.datetime) -> List[TickByTickBidAsk]:
+        ticks: List[TickByTickBidAsk] = []
+        ticks_db = self._get_ticks_by_time(time=time)  # iterator of tuples
+        for db_time, bid, ask, bid_size, ask_size, _, _, _ in ticks_db:
+            t = TickByTickBidAsk(bid=bid, ask=ask, bid_size=bid_size, ask_size=ask_size, time=time)
+            ticks.append(t)
+        return ticks
 
 
 class TradesTicksLoader(TicksLoader):
@@ -70,10 +66,10 @@ class TradesTicksLoader(TicksLoader):
             date_col="time",
         )
 
-    def get_ticks_batch_by_time(self, time: datetime.datetime) -> MktTradeBatchEvent:
-        ticks = self._get_ticks_by_time(time=time)
-        event_list = []
-        for db_time, price, size, _, _ in ticks:
-            trade = MktTradeEvent(price=price, size=size, time=time)
-            event_list.append(trade)
-        return MktTradeBatchEvent(events=event_list, time=time)
+    def get_ticks_batch_by_time(self, time: datetime.datetime) -> List[TickByTickAllLast]:
+        ticks: List[TickByTickAllLast] = []
+        ticks_db = self._get_ticks_by_time(time=time)
+        for db_time, price, size, _, _ in ticks_db:
+            trade = TickByTickAllLast(price=price, size=size, time=time)
+            ticks.append(trade)
+        return ticks

@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from simplebt.events.generic import Event
-from simplebt import orders
+from simplebt.trade import StrategyTrade
 
 
 @dataclass(frozen=True)
 class OrderReceivedEvent(Event):
-    order: orders.Order
+    trade: StrategyTrade
 
 
 @dataclass(frozen=True)
 class OrderCanceledEvent(Event):
-    order: orders.Order
+    trade: StrategyTrade

@@ -1,8 +1,17 @@
 import datetime
 from dataclasses import dataclass
-from simplebt.book import BookL0
+from typing import List
+
 from simplebt.events.generic import Event
+from simplebt.position import PnLSingle
+from simplebt.ticker import Ticker
 from simplebt.trade import StrategyTrade, Fill
+
+
+@dataclass(frozen=True)
+class PendingTickersEvent(Event):
+    time: datetime.datetime
+    tickers: List[Ticker]
 
 
 @dataclass(frozen=True)
@@ -13,16 +22,9 @@ class FillEvent(Event):
 
 
 @dataclass(frozen=True)
-class ChangeBestEvent(Event):
+class PnLSingleEvent(Event):
     time: datetime.datetime
-    best: BookL0
-
-
-@dataclass(frozen=True)
-class MktTradeEvent(Event):
-    time: datetime.datetime
-    price: float
-    size: int
+    pnl: PnLSingle
 
 
 # Market Calendar Events

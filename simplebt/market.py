@@ -1,16 +1,14 @@
 import datetime
-import pathlib
 import random
 from typing import List, Union, Optional, Tuple
 import ib_insync as ibi
 import pandas as pd
 import trading_calendars as tc
 
-from simplebt.events.market import MktOpenEvent, MktCloseEvent, MktTradeEvent, ChangeBestEvent, FillEvent
+from simplebt.events.market import MktOpenEvent, MktCloseEvent, FillEvent
 from simplebt.historical_data.load.ticks import BidAskTicksLoader, TradesTicksLoader
-from simplebt.events.batches import ChangeBestBatchEvent, MktTradeBatchEvent, PendingTickerEvent
-from simplebt.book import BookL0
 from simplebt.orders import Order, LmtOrder, MktOrder, OrderAction
+from simplebt.ticker import TickByTickBidAsk, TickByTickAllLast, Ticker
 from simplebt.trade import StrategyTrade, Fill
 
 
@@ -27,7 +25,7 @@ class Market:
         self.calendar: tc.TradingCalendar = tc.get_calendar(contract.exchange)
         self._is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(self.time))
 
-        self._best: BookL0 = BookL0(time=start_time, bid=-1, ask=-1, bid_size=0, ask_size=0)
+        self._best: TickByTickBidAsk = TickByTickBidAsk(time=start_time, bid=-1, ask=-1, bid_size=0, ask_size=0)
 
         self._trades_loader = TradesTicksLoader(contract)
         self._bidask_loader = BidAskTicksLoader(contract)
@@ -36,20 +34,20 @@ class Market:
 
         # Events
         self._cal_event: Optional[Union[MktOpenEvent, MktCloseEvent]] = None
-        self._trades_events = MktTradeBatchEvent(events=[], time=start_time)
-        self._change_best_events = ChangeBestBatchEvent(events=[], time=start_time)
+        self._mkt_trades: List[TickByTickAllLast] = []
+        self._change_bests: List[TickByTickBidAsk] = []
         self._fill_events: List[FillEvent] = []
 
         self.set_time(time=self.time)  # This method may populate the collections above
 
-    def get_book_best(self, pick_random_best: bool = False) -> BookL0:
+    def get_book_best(self, pick_random_best: bool = False) -> TickByTickBidAsk:
         """
         :param pick_random_best: To use when the quote is used at a random time between the beginning and the end of
         a 1 sec interval. If new changeBest (bid ask) ticks are available, pick a random one.
         Otherwise return the last known BookL0: self._best
         """
-        if pick_random_best and self._change_best_events.events:
-            best: BookL0 = random.choice(self._change_best_events.events).best
+        if pick_random_best and len(self._change_bests) > 0:
+            best: TickByTickBidAsk = random.choice(self._change_bests)
         else:  # the BookL0 retrieved from the latest changeBest
             best = self._best
         return best
@@ -57,17 +55,15 @@ class Market:
     def get_fill_events(self) -> List[FillEvent]:
         return self._fill_events
 
-    def get_pending_ticker_events(self) -> Optional[PendingTickerEvent]:
-        events: List[Union[ChangeBestEvent, MktTradeEvent]] = []
-        events += self._trades_events.events if self._trades_events.events else []
-        events += self._change_best_events.events if self._change_best_events.events else []
-        if events:
-            ticker = PendingTickerEvent(
+    def get_pending_ticker(self) -> Optional[Ticker]:
+        ticks: List[Union[TickByTickBidAsk, TickByTickAllLast]] = []
+        ticks += self._mkt_trades
+        ticks += self._change_bests
+        if ticks:
+            return Ticker(
                 contract=self.contract,
-                events=events,
-                time=self._change_best_events.time or self._trades_events.time
+                tickByTicks=ticks,
             )
-            return ticker
 
     def add_order(self, order: Order) -> StrategyTrade:
         # validate order and add ID
@@ -92,11 +88,10 @@ class Market:
             self.time = time
         self._cal_event = self._update_cal_and_get_event(time=time)
 
-        self._trades_events = self._trades_loader.get_ticks_batch_by_time(time=time)
-        self._change_best_events = self._bidask_loader.get_ticks_batch_by_time(time=time)
-        if self._change_best_events.events:
-            self._best = self._change_best_events.events[-1].best
-
+        self._mkt_trades = self._trades_loader.get_ticks_batch_by_time(time=time)
+        self._change_bests = self._bidask_loader.get_ticks_batch_by_time(time=time)
+        if len(self._change_bests) > 0:
+            self._best = self._change_bests[-1]
         self._fill_events = self._process_pending_orders()  # Will just return an empty list if the mkt is closed
 
     def _update_cal_and_get_event(self, time: datetime.datetime) -> Optional[Union[MktOpenEvent, MktCloseEvent]]:
@@ -138,7 +133,7 @@ class Market:
         return trade, fill
 
     def _exec_mkt_order(self, order: MktOrder) -> Optional[Fill]:
-        best: BookL0 = self.get_book_best(pick_random_best=True)
+        best: TickByTickBidAsk = self.get_book_best(pick_random_best=True)
         price: Optional[float] = None
         filled_lots: Optional[int] = None
         # pick the side according to the order type (Long vs Short)
@@ -160,7 +155,7 @@ class Market:
             )
 
     def _exec_lmt_order(self, order: LmtOrder) -> Optional[Fill]:
-        best: BookL0 = self.get_book_best(pick_random_best=True)
+        best: TickByTickBidAsk = self.get_book_best(pick_random_best=True)
         # pick the side according to the order type (Long vs Short)
         price: Optional[float] = None
         filled_lots: Optional[int] = None
