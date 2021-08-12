@@ -76,7 +76,7 @@ class Market:
         corresponding_trade = next(filter(lambda t: t.order == order, self._trades_with_pending_orders))
         self._trades_with_pending_orders.remove(corresponding_trade)
         order.cancelled()
-        corresponding_trade.order = order
+        corresponding_trade.update_order(order)
         return corresponding_trade
 
     def set_time(self, time: datetime.datetime):
@@ -92,7 +92,7 @@ class Market:
         self._change_bests = self._bidask_loader.get_ticks_batch_by_time(time=time)
         if len(self._change_bests) > 0:
             self._best = self._change_bests[-1]
-        self._fill_events = self._process_pending_orders()  # Will just return an empty list if the mkt is closed
+        self._fill_events = self._process_pending_orders() if self._is_mkt_open else []
 
     def _update_cal_and_get_event(self, time: datetime.datetime) -> Optional[Union[MktOpenEvent, MktCloseEvent]]:
         is_mkt_open: bool = self.calendar.is_open_on_minute(pd.Timestamp(time))
@@ -108,32 +108,30 @@ class Market:
 
     def _process_pending_orders(self) -> List[FillEvent]:
         fill_events: List[FillEvent] = []
-        if self._is_mkt_open:
-            not_filled: List[StrategyTrade] = []
+
+        for best_bidask in self._change_bests:
             for trade_with_pending_order in self._trades_with_pending_orders:
-                trade, fill = self._process_order(trade_with_pending_order)
+                trade, fill = self._process_order(trade=trade_with_pending_order, best=best_bidask)
                 if fill:
                     fill_events.append(FillEvent(time=self.time, trade=trade, fill=fill))
                 # Using if instead of elif here
                 # because even if there was a fill, the original order might not be completely filled yet
-                if not trade.filled():
-                    not_filled.append(trade_with_pending_order)  # treating everything as a Good Til Cancelled for the moment
-            self._trades_with_pending_orders = not_filled
+                if trade.filled:
+                    self._trades_with_pending_orders.remove(trade)
         return fill_events
 
-    def _process_order(self, trade: StrategyTrade) -> Tuple[StrategyTrade, Optional[Fill]]:
+    def _process_order(self, trade: StrategyTrade, best: TickByTickBidAsk) -> Tuple[StrategyTrade, Optional[Fill]]:
         fill: Optional[Fill] = None
         if isinstance(trade.order, MktOrder):
-            fill = self._exec_mkt_order(order=trade.order)
+            fill = self._exec_mkt_order(order=trade.order, best=best)
         elif isinstance(trade.order, LmtOrder):
-            fill = self._exec_lmt_order(order=trade.order)
+            fill = self._exec_lmt_order(order=trade.order, best=best)
 
         if fill:
             trade.add_fill(fill)
         return trade, fill
 
-    def _exec_mkt_order(self, order: MktOrder) -> Optional[Fill]:
-        best: TickByTickBidAsk = self.get_book_best(pick_random_best=True)
+    def _exec_mkt_order(self, order: MktOrder, best: TickByTickBidAsk) -> Optional[Fill]:
         price: Optional[float] = None
         filled_lots: Optional[int] = None
         # pick the side according to the order type (Long vs Short)
@@ -154,8 +152,7 @@ class Market:
                 order_action=order.action
             )
 
-    def _exec_lmt_order(self, order: LmtOrder) -> Optional[Fill]:
-        best: TickByTickBidAsk = self.get_book_best(pick_random_best=True)
+    def _exec_lmt_order(self, order: LmtOrder, best: TickByTickBidAsk) -> Optional[Fill]:
         # pick the side according to the order type (Long vs Short)
         price: Optional[float] = None
         filled_lots: Optional[int] = None

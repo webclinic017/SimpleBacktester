@@ -31,8 +31,10 @@ class StrategyTrade:
     def order(self) -> Order:
         return self._order
 
-    @order.setter
-    def order(self, order):
+    # @order.setter
+    # def order(self, order):
+    #     self._order = order
+    def update_order(self, order: Order):
         self._order = order
 
     def add_fill(self, fill: Fill):
@@ -41,6 +43,7 @@ class StrategyTrade:
         if self._filled_lots > self._order.lots:
             raise ValueError
 
+    @property
     def filled(self) -> bool:
         if self._filled_lots == self._order.lots:
             return True
