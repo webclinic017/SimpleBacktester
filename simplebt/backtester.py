@@ -137,9 +137,10 @@ class Backtester:
             delta = bid - position.avg_cost
         else:
             delta = position.avg_cost - ask
-        unrealized_pnl: float = delta * position.position
+        unrealized_pnl: float = delta * abs(position.position)
         if isinstance(position.contract, ibi.Future):
             unrealized_pnl *= int(position.contract.multiplier)
+        logger.debug(f"With bid={bid} ask={ask} - unrealized PNL on contract {position.contract.symbol}: {unrealized_pnl}")
         return PnLSingle(conId=position.contract.conId, position=position.position, unrealizedPnL=unrealized_pnl)
 
     def _forward_event_to_strategy(self, event: Event):
