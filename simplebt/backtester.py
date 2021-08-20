@@ -139,7 +139,7 @@ class Backtester:
             delta = position.avg_cost - ask
         unrealized_pnl: float = delta * abs(position.position)
         if isinstance(position.contract, ibi.Future):
-            unrealized_pnl *= int(position.contract.multiplier)
+            unrealized_pnl *= float(position.contract.multiplier)
         logger.debug(f"With bid={bid} ask={ask} - unrealized PNL on contract {position.contract.symbol}: {unrealized_pnl}")
         return PnLSingle(conId=position.contract.conId, position=position.position, unrealizedPnL=unrealized_pnl)
 
